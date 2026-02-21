@@ -1,0 +1,12 @@
+# Avtomatical normalize string
+* text=auto
+
+# Go files
+*.go text
+go.mod text
+go.sum text
+
+# Binary files
+*.png binary
+*.jpg binary
+*.ico binary
