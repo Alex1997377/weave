@@ -12,6 +12,7 @@ type Transaction interface {
 	Validate() error
 	Sign(privateKey []byte) error
 	Verify(publicKey []byte) bool
+	Serialize() []byte
 }
 
 type BankTransaction struct {

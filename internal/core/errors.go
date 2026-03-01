@@ -26,3 +26,43 @@ const (
 	ErrBlockNotFound    = "BLOCK_NOT_FOUND"
 	ErrChainCorrupted   = "CHAIN_CORRUPTED"
 )
+
+func NewInvalidBlockError(message string, err error) *BlockchainError {
+	return &BlockchainError{
+		Code:    ErrInvalidBlock,
+		Message: message,
+		Err:     err,
+	}
+}
+
+func NewInvalidHashError(message string, err error) *BlockchainError {
+	return &BlockchainError{
+		Code:    ErrInvalidHash,
+		Message: message,
+		Err:     err,
+	}
+}
+
+func NewInvalidSignatureError(message string, err error) *BlockchainError {
+	return &BlockchainError{
+		Code:    ErrInvalidSignature,
+		Message: message,
+		Err:     err,
+	}
+}
+
+func NewBlockNotFoundError(message string, err error) *BlockchainError {
+	return &BlockchainError{
+		Code:    ErrBlockNotFound,
+		Message: message,
+		Err:     err,
+	}
+}
+
+func NewChainCorruptedError(message string, err error) *BlockchainError {
+	return &BlockchainError{
+		Code:    ErrChainCorrupted,
+		Message: message,
+		Err:     err,
+	}
+}

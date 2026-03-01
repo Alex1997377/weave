@@ -3,38 +3,17 @@ package core
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/binary"
+	"errors"
 	"time"
 
 	"github.com/Alex1997377/weave/internal/crypto"
 )
 
-type Header struct {
-	Index        int    `json:"index"`
-	Timestamp    int64  `json:"timestamp"`
-	PreviousHash []byte `json:"previoues_hash"`
-	MerkleRoot   []byte `json:"merkle_root"`
-	Nonce        int    `json:"nonce"`
-	Difficulty   int    `json:"difficulty"`
-}
-
 type Block struct {
 	Header      Header
 	Transaction []Transaction
-	Hash        []byte `json:"hash"` // The unique "fingerprint" of the current block, calculated based on all the fields above.
-}
-
-func (h *Header) Serialize() []byte {
-	buf := new(bytes.Buffer)
-
-	binary.Write(buf, binary.LittleEndian, int64(h.Index))
-	binary.Write(buf, binary.LittleEndian, h.Timestamp)
-	buf.Write([]byte(h.PreviousHash))
-	buf.Write([]byte(h.MerkleRoot))
-	binary.Write(buf, binary.LittleEndian, int64(h.Nonce))
-	binary.Write(buf, binary.LittleEndian, int64(h.Difficulty))
-
-	return buf.Bytes()
+	Hash        Hash // The unique "fingerprint" of the current block, calculated based on all the fields above.
+	Size        int  `json:"size"`
 }
 
 func (b *Block) CalculateHash() []byte {
@@ -50,6 +29,44 @@ func (b *Block) SetMerkleRoot() {
 	}
 
 	b.Header.MerkleRoot = crypto.CalculateMerkleRoot(ids)
+}
+
+func (b *Block) Serialize() []byte {
+	buf := new(bytes.Buffer)
+
+	buf.Write(b.Header.Serialize())
+
+	for _, tx := range b.Transaction {
+		buf.Write(tx.Serialize())
+	}
+
+	return buf.Bytes()
+}
+
+func (b *Block) CalculateSize() int {
+	headerSize := len(b.Header.Serialize())
+
+	transactionsSize := 0
+	for _, tx := range b.Transaction {
+		transactionsSize += len(tx.Serialize())
+	}
+
+	hashSize := len(b.Hash)
+
+	return headerSize + transactionsSize + hashSize
+}
+
+func (b *Block) Validate() error {
+	if !b.Hash.IsValidForDifficulty(b.Header.Difficulty) {
+		return errors.New("invalid proof of work")
+	}
+
+	calculatedHash := b.CalculateHash()
+	if !bytes.Equal(b.Hash[:], calculatedHash[:]) {
+		return errors.New("block hash doesn`t match content")
+	}
+
+	return nil
 }
 
 func NewBlock(
