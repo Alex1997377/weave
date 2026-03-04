@@ -1,18 +1,27 @@
 package core
 
 import (
+	"bytes"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/binary"
 	"errors"
+	"fmt"
+	"math"
 )
 
 type Transaction interface {
-	GetID() []byte
-	GetSender() []byte
-	GetRecipient() []byte
-	GetAmount() float64
-	Validate() error
-	Sign(privateKey []byte) error
-	Verify(publicKey []byte) bool
-	Serialize() []byte
+	TransactionGetID() []byte
+	TransactionGetSender() []byte
+	TransactionGetRecipient() []byte
+	TransactionGetAmount() float64
+	TransactionValidate() error
+	TransactionSign(privateKey []byte) error
+	TransactionVerify(publicKey []byte) bool
+	TransactionSerialize() []byte
 }
 
 type BankTransaction struct {
@@ -23,23 +32,23 @@ type BankTransaction struct {
 	Signature []byte  `json:"signature"`
 }
 
-func (bt *BankTransaction) GetID() []byte {
+func (bt *BankTransaction) TransactionGetID() []byte {
 	return bt.ID
 }
 
-func (bt *BankTransaction) GetSender() []byte {
+func (bt *BankTransaction) TransactionGetSender() []byte {
 	return bt.Sender
 }
 
-func (bt *BankTransaction) GetRecipient() []byte {
+func (bt *BankTransaction) TransactionGetRecipient() []byte {
 	return bt.Recipient
 }
 
-func (bt *BankTransaction) GetAmount() float64 {
+func (bt *BankTransaction) TransactionGetAmount() float64 {
 	return bt.Amount
 }
 
-func (bt *BankTransaction) Validate() error {
+func (bt *BankTransaction) TransactionValidate() error {
 	if bt.Amount <= 0 {
 		return errors.New("amount must be positive")
 	}
@@ -49,12 +58,44 @@ func (bt *BankTransaction) Validate() error {
 	return nil
 }
 
-func (bt *BankTransaction) Sign(privateKey []byte) error {
-	// TODO signing implementation
+func (bt *BankTransaction) TransactionSign(privateKey []byte) error {
+	privKey, err := x509.ParseECPrivateKey(privateKey)
+	if err != nil {
+		return fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	data := bt.TransactionSerialize()
+	hash := sha256.Sum256(data)
+
+	signature, err := ecdsa.SignASN1(rand.Reader, privKey, hash[:])
+	if err != nil {
+		return fmt.Errorf("failed to sign transaction: %w", err)
+	}
+
+	bt.Signature = signature
+
+	bt.ID = hash[:]
+
 	return nil
 }
 
-func (bt *BankTransaction) Verify(publicKey []byte) bool {
-	// TODO varification implementation
-	return true
+func (bt *BankTransaction) TransactionVerify(publicKey []byte) bool {
+	if len(bt.Signature) != ed25519.SignatureSize {
+		return false
+	}
+
+	data := bt.TransactionSerialize()
+
+	return ed25519.Verify(publicKey, data, bt.Signature)
+}
+
+func (bt *BankTransaction) TransactionSerialize() []byte {
+	buf := new(bytes.Buffer)
+
+	buf.Write(bt.Sender)
+	buf.Write(bt.Recipient)
+
+	binary.Write(buf, binary.LittleEndian, math.Float64bits(bt.Amount))
+
+	return buf.Bytes()
 }

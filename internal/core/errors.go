@@ -25,6 +25,7 @@ const (
 	ErrInvalidSignature = "INVALID_SIGNATURE"
 	ErrBlockNotFound    = "BLOCK_NOT_FOUND"
 	ErrChainCorrupted   = "CHAIN_CORRUPTED"
+	ErrCreateWallet     = "GENERATE_KEY_PAIR_ERROR"
 )
 
 func NewInvalidBlockError(message string, err error) *BlockchainError {
@@ -62,6 +63,14 @@ func NewBlockNotFoundError(message string, err error) *BlockchainError {
 func NewChainCorruptedError(message string, err error) *BlockchainError {
 	return &BlockchainError{
 		Code:    ErrChainCorrupted,
+		Message: message,
+		Err:     err,
+	}
+}
+
+func NewCreateWalletError(message string, err error) *BlockchainError {
+	return &BlockchainError{
+		Code:    ErrCreateWallet,
 		Message: message,
 		Err:     err,
 	}

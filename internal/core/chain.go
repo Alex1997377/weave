@@ -7,21 +7,35 @@ import (
 	"fmt"
 	"strings"
 
+	// "sync"
+
 	"github.com/Alex1997377/weave/internal/crypto"
+	"github.com/Alex1997377/weave/internal/store"
 )
 
 const DIFFICULTY int = 4
 
 type Blockchain struct {
-	Blocks []*Block
+	repo *store.
+	Tip  []byte
+	// Mempool    []Transaction
+	// txChannel  chan Transaction
+	// stopMining chan struct{}
+	// mu         sync.RWMutex
 }
 
-func NewBlockchain() *Blockchain {
-	emptyHash := make([]byte, 32)
+func NewBlockchain(repo) *Blockchain {
+	lastHash, err := repo.GetLastHash()
 
-	genesisBlock := NewBlock([]Transaction{}, emptyHash, 0, DIFFICULTY)
+	if err == badger.ErrKeyNotFound {
+		bc := &Blockchain{repo: repo}
+		genesis := NewBlock([]Transaction{}, make([]byte, 32), 0, 4)
+		repo.SaveBlock(genesis)
+		bc.Tip = genesis.Hash
+		return bc
+	}
 
-	return &Blockchain{Blocks: []*Block{genesisBlock}}
+	return &Blockchain{repo: repo, Tip: lastHash}
 }
 
 // Adds a new link to the end of the chain
@@ -33,7 +47,7 @@ func (bc *Blockchain) AddBlock(transactions []Transaction) error {
 
 	// validation tratransactions
 	for _, tx := range transactions {
-		if err := tx.Validate(); err != nil {
+		if err := tx.TransactionValidate(); err != nil {
 			return NewInvalidBlockError("transaction validation failed", err)
 		}
 	}
@@ -58,7 +72,7 @@ func (b *Block) CalculateMerkleRoot() []byte {
 	var txIDs [][]byte
 
 	for _, tx := range b.Transaction {
-		txIDs = append(txIDs, tx.GetID())
+		txIDs = append(txIDs, tx.TransactionGetID())
 	}
 
 	return crypto.CalculateMerkleRoot(txIDs)
@@ -111,6 +125,25 @@ func (bc *Blockchain) IsValid() error {
 	return nil
 }
 
+func (bc *Blockchain) GetBalance(address []byte) float64 {
+	var balance float64
+
+	for _, block := range bc.Blocks {
+		for _, tx := range block.Transaction {
+			senderAddr := crypto.HashPublicKey(tx.TransactionGetSender())
+
+			if bytes.Equal(senderAddr, address) {
+				balance -= tx.TransactionGetAmount()
+			}
+
+			if bytes.Equal(tx.TransactionGetRecipient(), address) {
+				balance += tx.TransactionGetAmount()
+			}
+		}
+	}
+	return balance
+}
+
 // Display displays all blocks in the blockchain
 func (bc *Blockchain) Display() {
 	for i, block := range bc.Blocks {
@@ -118,6 +151,7 @@ func (bc *Blockchain) Display() {
 		fmt.Printf("Timestamp: 	%d\n", block.Header.Timestamp)
 		fmt.Printf("Data: 	   	%s\n", block.Transaction)
 		fmt.Printf("Prev Hash:  %s\n", hex.EncodeToString(block.Header.PreviousHash))
+		fmt.Printf("Size: %d bytes\n", block.Size)
 		fmt.Printf("Hash: 		%s\n", hex.EncodeToString(block.Hash))
 		fmt.Println("  --- ฿ ---  ")
 	}

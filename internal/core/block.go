@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Alex1997377/weave/internal/crypto"
@@ -12,8 +13,8 @@ import (
 type Block struct {
 	Header      Header
 	Transaction []Transaction
-	Hash        Hash // The unique "fingerprint" of the current block, calculated based on all the fields above.
-	Size        int  `json:"size"`
+	Hash        crypto.Hash
+	Size        int `json:"size"`
 }
 
 func (b *Block) CalculateHash() []byte {
@@ -25,7 +26,7 @@ func (b *Block) CalculateHash() []byte {
 func (b *Block) SetMerkleRoot() {
 	var ids [][]byte
 	for _, tx := range b.Transaction {
-		ids = append(ids, tx.GetID())
+		ids = append(ids, tx.TransactionGetID())
 	}
 
 	b.Header.MerkleRoot = crypto.CalculateMerkleRoot(ids)
@@ -37,7 +38,7 @@ func (b *Block) Serialize() []byte {
 	buf.Write(b.Header.Serialize())
 
 	for _, tx := range b.Transaction {
-		buf.Write(tx.Serialize())
+		buf.Write(tx.TransactionSerialize())
 	}
 
 	return buf.Bytes()
@@ -48,7 +49,7 @@ func (b *Block) CalculateSize() int {
 
 	transactionsSize := 0
 	for _, tx := range b.Transaction {
-		transactionsSize += len(tx.Serialize())
+		transactionsSize += len(tx.TransactionSerialize())
 	}
 
 	hashSize := len(b.Hash)
@@ -69,11 +70,23 @@ func (b *Block) Validate() error {
 	return nil
 }
 
-func NewBlock(
-	transaction []Transaction,
-	PreviousHash []byte,
-	index int,
-	difficulty int) *Block {
+func (b *Block) Mine() {
+	fmt.Printf("Mining block %d with difficulty %d...\n", b.Header.Index, b.Header.Difficulty)
+
+	for {
+		hash := b.CalculateHash()
+
+		if crypto.Hash(hash).IsValidForDifficulty(b.Header.Difficulty) {
+			b.Hash = hash
+			fmt.Printf("Mined! Hash: %s\n", b.Hash)
+			break
+		}
+
+		b.Header.Nonce++
+	}
+}
+
+func NewBlock(transaction []Transaction, PreviousHash []byte, index, difficulty int) *Block {
 
 	// Fills in the time, data, and the reference to the previous block.
 	block := &Block{
@@ -89,10 +102,9 @@ func NewBlock(
 
 	block.SetMerkleRoot()
 
-	// block.Mine()
+	block.Mine()
 
-	// Crucially, it calls CalculateHash at the end so the block gets its own unique ID
-	block.Hash = block.CalculateHash()
+	block.Size = block.CalculateSize()
 
 	return block
 }
