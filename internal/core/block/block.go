@@ -7,20 +7,30 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Alex1997377/weave/internal/core/header"
+	"github.com/Alex1997377/weave/internal/core/transaction"
 	"github.com/Alex1997377/weave/internal/crypto"
 )
 
 type Block struct {
-	Header      Header
-	Transaction []Transaction
+	Header      header.Header
+	Transaction []transaction.Transaction
 	Hash        crypto.Hash
 	Size        int `json:"size"`
 }
 
-func (b *Block) CalculateHash() []byte {
-	data := b.Header.Serialize()
+func (b *Block) CalculateHash() ([]byte, error) {
+	if b == nil {
+		return nil, errors.New("block is nil")
+	}
+
+	data, err := b.Header.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize header: %w", err)
+	}
+
 	hash := sha256.Sum256(data)
-	return hash[:]
+	return hash[:], nil
 }
 
 func (b *Block) SetMerkleRoot() {
@@ -32,16 +42,24 @@ func (b *Block) SetMerkleRoot() {
 	b.Header.MerkleRoot = crypto.CalculateMerkleRoot(ids)
 }
 
-func (b *Block) Serialize() []byte {
+func (b *Block) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	buf.Write(b.Header.Serialize())
+	headerBytes, err := b.Header.Serialize()
+	if err != nil {
+		return nil, err
+	}
+	buf.Write(headerBytes)
 
 	for _, tx := range b.Transaction {
-		buf.Write(tx.TransactionSerialize())
+		txBytes, err := tx.TransactionSerialize()
+		if err != nil {
+			return nil, err
+		}
+		buf.Write(txBytes)
 	}
 
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
 
 func (b *Block) CalculateSize() int {

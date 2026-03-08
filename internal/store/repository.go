@@ -1,6 +1,16 @@
 package store
 
-import "github.com/dgraph-io/badger/v4"
+import (
+	"errors"
+
+	"github.com/dgraph-io/badger/v4"
+)
+
+var (
+	ErrBlockNotFound = errors.New("block not found")
+	ErrNilBlock      = errors.New("block is nil")
+	ErrNilHash       = errors.New("hash is nil")
+)
 
 type Repository struct {
 	db *badger.DB
@@ -16,9 +26,4 @@ func NewRepository(dbPath string) (*Repository, error) {
 		return nil, err
 	}
 	return &Repository{db: db}, nil
-}
-
-// Close закрывает базу при выходе из программы
-func (r *Repository) Close() {
-	r.db.Close()
 }

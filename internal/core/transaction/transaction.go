@@ -1,16 +1,12 @@
-package core
+package transaction
 
 import (
-	"bytes"
 	"crypto/ecdsa"
-	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"math"
 )
 
 type Transaction interface {
@@ -64,7 +60,11 @@ func (bt *BankTransaction) TransactionSign(privateKey []byte) error {
 		return fmt.Errorf("failed to parse private key: %w", err)
 	}
 
-	data := bt.TransactionSerialize()
+	data, err := bt.TransactionSerialize()
+	if err != nil {
+		return fmt.Errorf("failed to serialize transaction: %w", err)
+	}
+
 	hash := sha256.Sum256(data)
 
 	signature, err := ecdsa.SignASN1(rand.Reader, privKey, hash[:])
@@ -80,22 +80,26 @@ func (bt *BankTransaction) TransactionSign(privateKey []byte) error {
 }
 
 func (bt *BankTransaction) TransactionVerify(publicKey []byte) bool {
-	if len(bt.Signature) != ed25519.SignatureSize {
+	if bt.Signature == nil {
 		return false
 	}
 
-	data := bt.TransactionSerialize()
+	data, err := bt.TransactionSerialize()
+	if err != nil {
+		return false
+	}
 
-	return ed25519.Verify(publicKey, data, bt.Signature)
-}
+	hash := sha256.Sum256(data)
 
-func (bt *BankTransaction) TransactionSerialize() []byte {
-	buf := new(bytes.Buffer)
+	pubKey, err := x509.ParsePKIXPublicKey(publicKey)
+	if err != nil {
+		return false
+	}
 
-	buf.Write(bt.Sender)
-	buf.Write(bt.Recipient)
+	ecdsaPubKey, ok := pubKey.(*ecdsa.PublicKey)
+	if !ok {
+		return false
+	}
 
-	binary.Write(buf, binary.LittleEndian, math.Float64bits(bt.Amount))
-
-	return buf.Bytes()
+	return ecdsa.VerifyASN1(ecdsaPubKey, hash[:], bt.Signature)
 }

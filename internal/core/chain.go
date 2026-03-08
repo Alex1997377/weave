@@ -11,20 +11,21 @@ import (
 
 	"github.com/Alex1997377/weave/internal/crypto"
 	"github.com/Alex1997377/weave/internal/store"
+	"github.com/dgraph-io/badger/v4"
 )
 
 const DIFFICULTY int = 4
 
 type Blockchain struct {
-	repo *store.
-	Tip  []byte
+	Store BlockStore
+	Tip   []byte
 	// Mempool    []Transaction
 	// txChannel  chan Transaction
 	// stopMining chan struct{}
 	// mu         sync.RWMutex
 }
 
-func NewBlockchain(repo) *Blockchain {
+func NewBlockchain(repo *store.Repository) *Blockchain {
 	lastHash, err := repo.GetLastHash()
 
 	if err == badger.ErrKeyNotFound {

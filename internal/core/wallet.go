@@ -65,8 +65,8 @@ func (w *Wallet) SignTransaction(tx *BankTransaction) error {
 		return errors.New("wallet public key is nil")
 	}
 
-	data := tx.TransactionSerialize()
-	if data == nil {
+	data, err := tx.TransactionSerialize()
+	if err != nil {
 		return errors.New("failed to serialize transaction")
 	}
 
@@ -128,11 +128,41 @@ func LoadFromFile(filename string) (*Wallet, error) {
 	}
 
 	priv := ed25519.PrivateKey(privBytes)
+	if priv == nil {
+		return nil, errors.New("failed to create private key from bytes")
+	}
 
-	pub := priv.Public().(ed25519.PublicKey)
+	pub, ok := priv.Public().(ed25519.PublicKey)
+	if !ok || pub == nil {
+		return nil, errors.New("failed to extract public key from private key")
+	}
 
 	return &Wallet{
 		PrivateKey: priv,
 		PublicKey:  pub,
 	}, nil
+}
+
+func (w *Wallet) IsValid() error {
+	if w == nil {
+		return errors.New("wallet is nil")
+	}
+
+	if w.PrivateKey == nil {
+		return errors.New("private key is nil")
+	}
+
+	if w.PublicKey == nil {
+		return errors.New("public key is nil")
+	}
+
+	if len(w.PrivateKey) != ed25519.PrivateKeySize {
+		return errors.New("private key has invalid size")
+	}
+
+	if len(w.PublicKey) != ed25519.PublicKeySize {
+		return errors.New("public key has invalid size")
+	}
+
+	return nil
 }
