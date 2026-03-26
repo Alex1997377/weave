@@ -68,3 +68,33 @@
 - Шаг 5.3: Интеграционный тест. Сценарий: Создать 2 кошелька -> Сгенерировать транзакцию -> Добавить в Mempool -> Смайнить блок -> Проверить баланс кошельков.
 
 
+Тесты:
+    block
+        block_deserialize_test:
+            TestDeserializeBlockWithDeps_Success ✅ 
+            TestDeserializeBlockWithDeps_TransactionCountTooHigh ✅
+            TestDeserializeBlockWithDeps_TransactionError ✅
+            TestDeserializeBlockWithDeps_InvalidHashLength 
+            TestDeserializeBlockWithDeps_InvalidBlockSize ✅
+            TestDeserializeBlockWithDeps_ExtraData ✅
+            TestDeserializeBlockWithDeps_ZeroTransactions ✅
+            TestDeserializeBlockWithDeps_MaxTransactions ✅
+        block_deserialize_benchmark:
+
+            
+Оптимизация - рефакторинг:
+    block:
+        block_deserialize:
+            DeserializeBlockWithDeps:
+                добавлена многопоточность
+
+
+
+
+### Интеграционное тестирование:
+- Инициализировать пустое хранилище (in‑memory).
+- Создать генезис‑блок (без транзакций, с произвольным nonce).
+- Добавить несколько транзакций (отправитель/получатель).
+- Создать следующий блок, майнить его, сериализовать, сохранить.
+- Загрузить цепочку, проверить её валидность.
+- Вывести баланс кошелька (если есть).

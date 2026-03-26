@@ -1,8 +1,27 @@
 package crypto
 
-import "crypto/sha256"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+)
 
 type Hash []byte
+
+func (h Hash) String() string {
+	if h == nil {
+		return "<nil>"
+	}
+	return hex.EncodeToString(h)
+}
+
+func (h Hash) Bytes() []byte {
+	if h == nil {
+		return nil
+	}
+	result := make([]byte, len(h))
+	copy(result, h)
+	return result
+}
 
 func (h Hash) IsValidForDifficulty(difficulty int) bool {
 	// difficulty is not been unpositive and empty hash is not been validate

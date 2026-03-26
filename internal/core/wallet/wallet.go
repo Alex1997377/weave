@@ -1,12 +1,12 @@
-package core
+package wallet
 
 import (
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"os"
 
+	"github.com/Alex1997377/weave/internal/core/transaction"
 	"github.com/Alex1997377/weave/internal/crypto"
 )
 
@@ -22,8 +22,9 @@ func CreateWallet() (*Wallet, error) {
 	}
 
 	if pub == nil || priv == nil {
-		return nil, errors.New("generated keys are nil")
+		return nil, NewCreateWalletError("generated keys are nil", nil)
 	}
+
 	return &Wallet{
 		PrivateKey: priv,
 		PublicKey:  pub,
@@ -32,12 +33,12 @@ func CreateWallet() (*Wallet, error) {
 
 func (w *Wallet) GetAddres() ([]byte, error) {
 	if w.PublicKey == nil {
-		return nil, errors.New("wallet public key is nil")
+		return nil, NewInvalidWalletError("public key is nil")
 	}
 
 	address := crypto.HashPublicKey(w.PublicKey)
 	if address == nil {
-		return nil, errors.New("failed to generate address from public key")
+		return nil, NewInvalidWalletError("failed to generate address from public key")
 	}
 
 	return address, nil
@@ -52,27 +53,23 @@ func (w *Wallet) GetAddressString() (string, error) {
 	return hex.EncodeToString(address), nil
 }
 
-func (w *Wallet) SignTransaction(tx *BankTransaction) error {
+func (w *Wallet) SignTransaction(tx *transaction.BankTransaction) error {
 	if tx == nil {
-		return errors.New("transaction is nil")
+		return NewSignTransactionError("transaction is nil", nil)
 	}
 
-	if w.PrivateKey == nil {
-		return errors.New("wallet private key is nil")
-	}
-
-	if w.PublicKey == nil {
-		return errors.New("wallet public key is nil")
+	if err := w.IsValid(); err != nil {
+		return NewSignTransactionError("invalid wallet", err)
 	}
 
 	data, err := tx.TransactionSerialize()
 	if err != nil {
-		return errors.New("failed to serialize transaction")
+		return NewSignTransactionError("failed to serialize transaction", err)
 	}
 
 	signature := ed25519.Sign(w.PrivateKey, data)
 	if signature == nil {
-		return errors.New("failed to generate signature")
+		return NewSignTransactionError("failed to generate signature", nil)
 	}
 
 	tx.Signature = signature
@@ -86,55 +83,43 @@ func (w *Wallet) SignTransaction(tx *BankTransaction) error {
 
 func (w *Wallet) SaveToFile(filename string) error {
 	if filename == "" {
-		return errors.New("filename cannot be empty")
+		return NewSaveWalletError(filename, "filename cannot be empty", nil)
 	}
 
-	if w.PrivateKey == nil {
-		return errors.New("wallet private key is nil")
-	}
-
-	if len(w.PrivateKey) != ed25519.PrivateKeySize {
-		return errors.New("invalid private key size")
+	if err := w.IsValid(); err != nil {
+		return NewSaveWalletError(filename, "invalid wallet", err)
 	}
 
 	err := os.WriteFile(filename, w.PrivateKey, 0600)
 	if err != nil {
-		return &os.PathError{
-			Op:   "write",
-			Path: filename,
-			Err:  err,
-		}
+		return NewSaveWalletError(filename, "failed to write file", err)
 	}
-
+	
 	return nil
 }
 
 func LoadFromFile(filename string) (*Wallet, error) {
 	if filename == "" {
-		return nil, errors.New("filename cannot be empty")
+		return nil, NewLoadWalletError(filename, "filename cannot be empty", nil)
 	}
 
 	privBytes, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, &os.PathError{
-			Op:   "read",
-			Path: filename,
-			Err:  err,
-		}
+		return nil, NewLoadWalletError(filename, "failed to read file", err)
 	}
 
 	if len(privBytes) != ed25519.PrivateKeySize {
-		return nil, errors.New("invalid private key size")
+		return nil, NewLoadWalletError(filename, "invalid private key size", nil)
 	}
 
 	priv := ed25519.PrivateKey(privBytes)
 	if priv == nil {
-		return nil, errors.New("failed to create private key from bytes")
+		return nil, NewLoadWalletError(filename, "failed to create private key from bytes", nil)
 	}
 
 	pub, ok := priv.Public().(ed25519.PublicKey)
 	if !ok || pub == nil {
-		return nil, errors.New("failed to extract public key from private key")
+		return nil, NewLoadWalletError(filename, "failed to extract public key from private key", nil)
 	}
 
 	return &Wallet{
@@ -145,23 +130,23 @@ func LoadFromFile(filename string) (*Wallet, error) {
 
 func (w *Wallet) IsValid() error {
 	if w == nil {
-		return errors.New("wallet is nil")
+		return NewInvalidWalletError("wallet is nil")
 	}
 
 	if w.PrivateKey == nil {
-		return errors.New("private key is nil")
+		return NewInvalidWalletError("private key is nil")
 	}
 
 	if w.PublicKey == nil {
-		return errors.New("public key is nil")
+		return NewInvalidWalletError("public key is nil")
 	}
 
 	if len(w.PrivateKey) != ed25519.PrivateKeySize {
-		return errors.New("private key has invalid size")
+		return NewInvalidWalletError("private key has invalid size")
 	}
 
 	if len(w.PublicKey) != ed25519.PublicKeySize {
-		return errors.New("public key has invalid size")
+		return NewInvalidWalletError("public key has invalid size")
 	}
 
 	return nil

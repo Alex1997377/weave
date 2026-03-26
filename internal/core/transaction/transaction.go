@@ -17,7 +17,7 @@ type Transaction interface {
 	TransactionValidate() error
 	TransactionSign(privateKey []byte) error
 	TransactionVerify(publicKey []byte) bool
-	TransactionSerialize() []byte
+	TransactionSerialize() ([]byte, error)
 }
 
 type BankTransaction struct {

@@ -2,44 +2,52 @@ package store
 
 import (
 	"errors"
+	"fmt"
 
-	"github.com/Alex1997377/weave/internal/core"
+	"github.com/Alex1997377/weave/internal/core/block"
 	"github.com/dgraph-io/badger/v4"
 )
 
-// SaveBlock записывает блок в БД и обновляет указатель на последний хеш
-
-func (r *Repository) SaveBlock(block *core.Block) error {
-	if block == nil {
+// SaveBlock сохраняет блок в БД (реализация block.BlockStore)
+func (r *Repository) SaveBlock(b *block.Block) error {
+	if b == nil {
 		return ErrNilBlock
 	}
 
-	if block.Hash == nil {
+	if b.Hash == nil {
 		return errors.New("block hash is nil")
 	}
 
 	return r.db.Update(func(txn *badger.Txn) error {
-		blockData, err := block.Serialize()
+		// Сериализуем блок
+		blockData, err := b.Serialize()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to serialize block: %w", err)
 		}
 
-		key := append([]byte("b"), block.Hash...)
-		err = txn.Set(key, blockData)
-		if err != nil {
-			return err
+		// Сохраняем блок по ключу b + hash
+		key := append([]byte("b"), b.Hash...)
+		if err := txn.Set(key, blockData); err != nil {
+			return fmt.Errorf("failed to set block data: %w", err)
 		}
 
-		return txn.Set([]byte("l"), block.Hash)
+		// Обновляем указатель на последний блок
+		if err := txn.Set([]byte("l"), b.Hash); err != nil {
+			return fmt.Errorf("failed to update last hash: %w", err)
+		}
+
+		return nil
 	})
 }
 
-func (r *Repository) GetBlock(hash []byte) (*core.Block, error) {
+// GetBlock получает блок по хешу (реализация block.BlockStore)
+func (r *Repository) GetBlock(hash []byte) (*block.Block, error) {
 	if hash == nil {
 		return nil, ErrNilHash
 	}
 
-	var block *core.Block
+	var resultBlock *block.Block
+
 	err := r.db.View(func(txn *badger.Txn) error {
 		key := append([]byte("b"), hash...)
 		item, err := txn.Get(key)
@@ -47,41 +55,52 @@ func (r *Repository) GetBlock(hash []byte) (*core.Block, error) {
 			if err == badger.ErrKeyNotFound {
 				return ErrBlockNotFound
 			}
-			return err
+			return fmt.Errorf("failed to get block from db: %w", err)
 		}
 
 		return item.Value(func(val []byte) error {
-			// TODO
-			block, err = core.DeserializationBlock(val)
-			return err
+			var err error
+			resultBlock, err = block.DeserializeBlock(val)
+			if err != nil {
+				return fmt.Errorf("failed to deserialize block: %w", err)
+			}
+			return nil
 		})
 	})
 
-	return block, err
+	return resultBlock, err
 }
 
-// GetLastHash возвращает хеш последнего блока из БД
+// GetLastHash получает хеш последнего блока (реализация block.BlockStore)
 func (r *Repository) GetLastHash() ([]byte, error) {
 	var lastHash []byte
 	err := r.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte("l"))
 		if err != nil {
-			return err
+			if err == badger.ErrKeyNotFound {
+				return nil // нет последнего хеша - это нормально для новой БД
+			}
+			return fmt.Errorf("failed to get last hash: %w", err)
 		}
+
 		return item.Value(func(val []byte) error {
-			lastHash = append([]byte{}, val...)
+			lastHash = make([]byte, len(val))
+			copy(lastHash, val)
 			return nil
 		})
 	})
 
-	if err == badger.ErrKeyNotFound {
-		return nil, nil
+	if err != nil {
+		return nil, err
 	}
 
-	return lastHash, err
+	return lastHash, nil
 }
 
-// Close закрывает базу при выходе из программы
-func (r *Repository) Close() {
-	r.db.Close()
+// Close закрывает соединение с БД (реализация block.BlockStore)
+func (r *Repository) Close() error {
+	if r.db == nil {
+		return errors.New("database connection is nil")
+	}
+	return r.db.Close()
 }

@@ -1,8 +1,6 @@
-package core
+package block
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"time"
@@ -16,113 +14,66 @@ type Block struct {
 	Header      header.Header
 	Transaction []transaction.Transaction
 	Hash        crypto.Hash
-	Size        int `json:"size"`
+	Size        uint32
 }
 
-func (b *Block) CalculateHash() ([]byte, error) {
-	if b == nil {
-		return nil, errors.New("block is nil")
+func NewBlock(
+	transactions []transaction.Transaction,
+	PreviousHash []byte,
+	index int,
+	difficulty int) (*Block, error) {
+
+	if PreviousHash == nil {
+		return nil, errors.New("previous hash cannot be nil")
 	}
 
-	data, err := b.Header.Serialize()
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize header: %w", err)
+	if index < 0 {
+		return nil, fmt.Errorf("block index cannot be negative: %d", index)
 	}
 
-	hash := sha256.Sum256(data)
-	return hash[:], nil
-}
-
-func (b *Block) SetMerkleRoot() {
-	var ids [][]byte
-	for _, tx := range b.Transaction {
-		ids = append(ids, tx.TransactionGetID())
+	if difficulty < 0 {
+		return nil, fmt.Errorf("difficulty cannot be negative: %d", difficulty)
 	}
 
-	b.Header.MerkleRoot = crypto.CalculateMerkleRoot(ids)
-}
-
-func (b *Block) Serialize() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	headerBytes, err := b.Header.Serialize()
-	if err != nil {
-		return nil, err
+	if index > 0 && len(transactions) == 0 {
+		return nil, errors.New("non-genesis block must have at least one transaction")
 	}
-	buf.Write(headerBytes)
 
-	for _, tx := range b.Transaction {
-		txBytes, err := tx.TransactionSerialize()
-		if err != nil {
-			return nil, err
+	for i, tx := range transactions {
+		if tx == nil {
+			return nil, fmt.Errorf("transaction at index %d is nil", i)
 		}
-		buf.Write(txBytes)
 	}
 
-	return buf.Bytes(), nil
-}
-
-func (b *Block) CalculateSize() int {
-	headerSize := len(b.Header.Serialize())
-
-	transactionsSize := 0
-	for _, tx := range b.Transaction {
-		transactionsSize += len(tx.TransactionSerialize())
-	}
-
-	hashSize := len(b.Hash)
-
-	return headerSize + transactionsSize + hashSize
-}
-
-func (b *Block) Validate() error {
-	if !b.Hash.IsValidForDifficulty(b.Header.Difficulty) {
-		return errors.New("invalid proof of work")
-	}
-
-	calculatedHash := b.CalculateHash()
-	if !bytes.Equal(b.Hash[:], calculatedHash[:]) {
-		return errors.New("block hash doesn`t match content")
-	}
-
-	return nil
-}
-
-func (b *Block) Mine() {
-	fmt.Printf("Mining block %d with difficulty %d...\n", b.Header.Index, b.Header.Difficulty)
-
-	for {
-		hash := b.CalculateHash()
-
-		if crypto.Hash(hash).IsValidForDifficulty(b.Header.Difficulty) {
-			b.Hash = hash
-			fmt.Printf("Mined! Hash: %s\n", b.Hash)
-			break
-		}
-
-		b.Header.Nonce++
-	}
-}
-
-func NewBlock(transaction []Transaction, PreviousHash []byte, index, difficulty int) *Block {
-
-	// Fills in the time, data, and the reference to the previous block.
 	block := &Block{
-		Header: Header{
+		Header: header.Header{
 			Index:        index,
 			Timestamp:    time.Now().Unix(),
 			PreviousHash: PreviousHash,
 			Difficulty:   difficulty,
 			Nonce:        0,
+			MerkleRoot:   nil,
 		},
-		Transaction: transaction,
+		Transaction: transactions,
 	}
 
-	block.SetMerkleRoot()
+	if err := block.SetMerkleRoot(); err != nil {
+		return nil, fmt.Errorf("failed to set merkle root: %w", err)
+	}
 
-	block.Mine()
+	if err := block.Mine(); err != nil {
+		return nil, fmt.Errorf("failed to mine block: %w", err)
+	}
 
-	block.Size = block.CalculateSize()
+	size, err := block.CalculateSize()
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate block size: %w", err)
+	}
+	block.Size = size
 
-	return block
+	if err := block.Validate(); err != nil {
+		return nil, fmt.Errorf("created block is invalid: %w", err)
+	}
+
+	return block, nil
 }
