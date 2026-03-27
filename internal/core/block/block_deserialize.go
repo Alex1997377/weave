@@ -12,6 +12,7 @@ import (
 	"github.com/Alex1997377/weave/internal/core/block/interfaces"
 	blockdeserialize "github.com/Alex1997377/weave/internal/core/pool/block/block_deserialize"
 	"github.com/Alex1997377/weave/internal/core/transaction"
+	"github.com/Alex1997377/weave/pkg/utils"
 )
 
 const (
@@ -25,13 +26,6 @@ type DeserializeOptions struct {
 	Tx     interfaces.TransactionDeserializer
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func DeserializeBlockWithparallelPooled(data []byte, opts DeserializeOptions) (*Block, error) {
 	if len(data) < minBlockSize {
 		return nil, fmt.Errorf("data too short for block")
@@ -43,6 +37,7 @@ func DeserializeBlockWithparallelPooled(data []byte, opts DeserializeOptions) (*
 	header, err := opts.Header.DeserializeHeader(buf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to deserialize header: %w", err)
+
 	}
 	block.Header = *header
 
@@ -50,6 +45,7 @@ func DeserializeBlockWithparallelPooled(data []byte, opts DeserializeOptions) (*
 	if err := binary.Read(buf, binary.LittleEndian, &txCount); err != nil {
 		return nil, fmt.Errorf("failed to read transaction count: %w", err)
 	}
+
 	if txCount > MaxTransactions {
 		return nil, fmt.Errorf("transaction count too high: %d (max: %d)", txCount, MaxTransactions)
 	}
@@ -62,7 +58,7 @@ func DeserializeBlockWithparallelPooled(data []byte, opts DeserializeOptions) (*
 
 	block.Transaction = make([]transaction.Transaction, txCount)
 	if txCount > 0 {
-		numWorkers := min(int(txCount), runtime.NumCPU())
+		numWorkers := utils.Min(int(txCount), runtime.NumCPU())
 		wp := blockdeserialize.NewWorkerPool(numWorkers, opts.Tx)
 
 		var resultsWg sync.WaitGroup
@@ -130,19 +126,24 @@ func DeserializeTransaction(buf *bytes.Reader) (transaction.Transaction, error) 
 func findTransactionBoundaries(data []byte, txCount uint32) ([]int, error) {
 	boundaries := make([]int, txCount+1)
 	offset := 0
+
 	for i := uint32(0); i < txCount; i++ {
 		if offset+108 > len(data) {
 			return nil, fmt.Errorf("tx %d header out of bounds", i)
 		}
+
 		sigLen := binary.LittleEndian.Uint32(data[offset+32+32+32+8:])
 		if sigLen > 1024 {
 			return nil, fmt.Errorf("signature too large at tx %d: %d", i, sigLen)
 		}
+
 		txSize := 108 + int(sigLen)
 		if offset+txSize > len(data) {
 			return nil, fmt.Errorf("tx %d size mismatch: need %d, have %d", i, txSize, len(data)-offset)
 		}
+
 		offset += txSize
+
 		boundaries[i+1] = offset
 	}
 	return boundaries, nil

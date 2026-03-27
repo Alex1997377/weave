@@ -123,7 +123,7 @@ func ShortHashString(hash crypto.Hash) (string, error) {
 	return full, nil
 }
 
-func FormatHahsWithPrefix(prefix string, hash crypto.Hash) (string, error) {
+func FormatHashWithPrefix(prefix string, hash crypto.Hash) (string, error) {
 	hashStr, err := HashToString(hash)
 	if err != nil {
 		return "", err

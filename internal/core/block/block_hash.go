@@ -6,26 +6,36 @@ import (
 	"github.com/Alex1997377/weave/pkg/utils"
 )
 
-func (b *Block) HashString() (string, error) {
+func (b *Block) hashBytes() ([]byte, error) {
 	if b == nil {
-		return "", errors.New("block is nil")
+		return nil, errors.New("block is nil")
+	}
+	return b.Hash, nil
+}
+
+func (b *Block) HashString() (string, error) {
+	hash, err := b.hashBytes()
+	if err != nil {
+		return "", err
 	}
 
-	return utils.HashToString(b.Hash)
+	return utils.HashToString(hash)
 }
 
 func (b *Block) ShortHash() (string, error) {
-	if b == nil {
-		return "", errors.New("block is nil")
+	hash, err := b.hashBytes()
+	if err != nil {
+		return "", err
 	}
 
-	return utils.ShortHashString(b.Hash)
+	return utils.ShortHashString(hash)
 }
 
 func (b *Block) FormatHash(prefix string) (string, error) {
-	if b == nil {
-		return "", errors.New("block is nil")
+	hash, err := b.hashBytes()
+	if err != nil {
+		return "", err
 	}
 
-	return utils.FormatHahsWithPrefix(prefix, b.Hash)
+	return utils.FormatHashWithPrefix(prefix, hash)
 }

@@ -86,12 +86,15 @@
     block:
         block_deserialize:
             DeserializeBlockWithDeps:
-                добавлена многопоточность
+                добавлена многопоточность ✅
 
 
+$ go test -bench=. -benchmem ./internal/core/block/tests
+PASS
+ok      github.com/Alex1997377/weave/internal/core/block/tests  1.042s
 
 
-### Интеграционное тестирование:
+### Интеграционное тестирование (ПОСЛЕ ВСЕХ ТЕСТОВ):
 - Инициализировать пустое хранилище (in‑memory).
 - Создать генезис‑блок (без транзакций, с произвольным nonce).
 - Добавить несколько транзакций (отправитель/получатель).
