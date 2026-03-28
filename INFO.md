@@ -55,3 +55,6 @@ blockchain-go/
     
     return zeros
 }```
+
+<!-- для проверки бенчмарков
+go test -bench=. -benchmem ./internal/core/block/tests -->

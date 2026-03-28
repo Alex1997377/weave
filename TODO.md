@@ -80,18 +80,38 @@
             TestDeserializeBlockWithDeps_ZeroTransactions ✅
             TestDeserializeBlockWithDeps_MaxTransactions ✅
         block_deserialize_benchmark:
+    block
+        benchmark_test_block_deserialize:
+            BenchmarkDeserializeBlock ✅
+            BenchmarkDeserializedBlockParallel ✅
+                ok      github.com/Alex1997377/weave/internal/core/block/tests  0.942s
 
-            
+    block
+        block_hash_test:
+            TestBlock_HashString ✅
+            TestBlock_ShortHash ✅
+            TestBlock_FormatHash ✅
+       
+
+
+
 Оптимизация - рефакторинг:
     block:
         block_deserialize:
             DeserializeBlockWithDeps:
                 добавлена многопоточность ✅
+                добавлены интерфейсы для гибкости тестирования ✅ 
+        block_hash:
+            добавлен общий метод HashBytes для проверки блока на nil во всех методах ✅
+            тестирование легкое, пока интерфейсы не нужны ✅
+        block_merkle:
+            
 
 
-$ go test -bench=. -benchmem ./internal/core/block/tests
-PASS
-ok      github.com/Alex1997377/weave/internal/core/block/tests  1.042s
+
+
+
+
 
 
 ### Интеграционное тестирование (ПОСЛЕ ВСЕХ ТЕСТОВ):
