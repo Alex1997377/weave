@@ -92,6 +92,11 @@
             TestBlock_ShortHash ✅
             TestBlock_FormatHash ✅
        
+    block
+        block_merkle_test:
+            TestBlock_CalculateMerkleRootWithError ✅
+            TestBlock_CalculateMerkleRoot ✅
+            TestBlock_SetMerkleRoot ✅
 
 
 

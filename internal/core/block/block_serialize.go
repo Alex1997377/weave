@@ -86,3 +86,4 @@ func (b *Block) CalculateSize() (uint32, error) {
 
 	return headerSize + transactionsSize + hashSize, nil
 }
+

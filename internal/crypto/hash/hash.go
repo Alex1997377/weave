@@ -3,6 +3,8 @@ package crypto
 import (
 	"crypto/sha256"
 	"encoding/hex"
+
+	"github.com/Alex1997377/weave/internal/core/block/interfaces"
 )
 
 type Hash []byte
@@ -63,4 +65,16 @@ func (h Hash) IsValidForDifficulty(difficulty int) bool {
 func HashPublicKey(pubKey []byte) []byte {
 	hash := sha256.Sum256(pubKey)
 	return hash[:20]
+}
+
+func HashBytes(data []byte) Hash {
+	sum := sha256.Sum256(data)
+	return Hash(sum[:])
+}
+
+type HashCalculatorImpl struct{}
+
+func (HashCalculatorImpl) Hash(data []byte) interfaces.Hash {
+	hash := sha256.Sum256(data)
+	return Hash(hash[:])
 }
