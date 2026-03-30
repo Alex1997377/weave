@@ -1,41 +1,29 @@
+// internal/core/block/block_hash.go
 package block
 
 import (
 	"errors"
 
-	"github.com/Alex1997377/weave/pkg/utils"
+	"github.com/Alex1997377/weave/internal/crypto/hash"
 )
 
-func (b *Block) hashBytes() ([]byte, error) {
-	if b == nil {
-		return nil, errors.New("block is nil")
-	}
-	return b.Hash, nil
-}
-
 func (b *Block) HashString() (string, error) {
-	hash, err := b.hashBytes()
-	if err != nil {
-		return "", err
+	if b == nil {
+		return "", errors.New("block is nil")
 	}
-
-	return utils.HashToString(hash)
+	return hash.HashToString(b.Hash) // ← теперь crypto содержит HashToString
 }
 
 func (b *Block) ShortHash() (string, error) {
-	hash, err := b.hashBytes()
-	if err != nil {
-		return "", err
+	if b == nil {
+		return "", errors.New("block is nil")
 	}
-
-	return utils.ShortHashString(hash)
+	return hash.ShortHashString(b.Hash)
 }
 
 func (b *Block) FormatHash(prefix string) (string, error) {
-	hash, err := b.hashBytes()
-	if err != nil {
-		return "", err
+	if b == nil {
+		return "", errors.New("block is nil")
 	}
-
-	return utils.FormatHashWithPrefix(prefix, hash)
+	return hash.FormatHashWithPrefix(prefix, b.Hash)
 }

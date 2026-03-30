@@ -1,19 +1,20 @@
 package block
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/Alex1997377/weave/internal/core/header"
 	"github.com/Alex1997377/weave/internal/core/transaction"
-	"github.com/Alex1997377/weave/internal/crypto"
+	"github.com/Alex1997377/weave/internal/crypto/hash"
 )
 
 type Block struct {
 	Header      header.Header
 	Transaction []transaction.Transaction
-	Hash        crypto.Hash
+	Hash        hash.Hash
 	Size        uint32
 }
 
@@ -61,7 +62,7 @@ func NewBlock(
 		return nil, fmt.Errorf("failed to set merkle root: %w", err)
 	}
 
-	if err := block.Mine(); err != nil {
+	if err := block.Mine(context.Background(), MineConfig{}); err != nil {
 		return nil, fmt.Errorf("failed to mine block: %w", err)
 	}
 

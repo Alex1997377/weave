@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/Alex1997377/weave/internal/core/transaction"
-	"github.com/Alex1997377/weave/internal/crypto"
+	"github.com/Alex1997377/weave/internal/crypto/hash"
 )
 
 type Wallet struct {
@@ -36,7 +36,7 @@ func (w *Wallet) GetAddres() ([]byte, error) {
 		return nil, NewInvalidWalletError("public key is nil")
 	}
 
-	address := crypto.HashPublicKey(w.PublicKey)
+	address := hash.HashPublicKey(w.PublicKey)
 	if address == nil {
 		return nil, NewInvalidWalletError("failed to generate address from public key")
 	}
@@ -94,7 +94,7 @@ func (w *Wallet) SaveToFile(filename string) error {
 	if err != nil {
 		return NewSaveWalletError(filename, "failed to write file", err)
 	}
-	
+
 	return nil
 }
 

@@ -1,133 +1,93 @@
-package utils
+package hash
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
-
-	"github.com/Alex1997377/weave/internal/crypto"
 )
 
-func HashToString(hash crypto.Hash) (string, error) {
+// HashToString конвертирует хеш в строку hex
+func HashToString(hash Hash) (string, error) {
 	if hash == nil {
 		return "", errors.New("hash is nil")
 	}
-
 	if len(hash) == 0 {
 		return "", errors.New("hash is empty")
 	}
-
-	return BytesToHex(hash), nil
+	return hex.EncodeToString(hash), nil
 }
 
-func HashFromString(hashStr string) (crypto.Hash, error) {
+// HashFromString создаёт хеш из строки hex
+func HashFromString(hashStr string) (Hash, error) {
 	if hashStr == "" {
 		return nil, errors.New("hash string is empty")
 	}
-
 	if len(hashStr) != 64 {
 		return nil, fmt.Errorf("invalid hash length: expected 64 characters, got %d", len(hashStr))
 	}
-
-	bytes, err := HexToBytes(hashStr)
+	bytes, err := hex.DecodeString(hashStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode hash: %w", err)
 	}
-
-	return crypto.Hash(bytes), nil
+	return Hash(bytes), nil
 }
 
-func MustHashToString(hash crypto.Hash) string {
+// MustHashToString паникует при ошибке
+func MustHashToString(hash Hash) string {
 	str, err := HashToString(hash)
 	if err != nil {
-		panic(fmt.Sprintf("fialed to convert hash to string: %v", err))
+		panic(fmt.Sprintf("failed to convert hash to string: %v", err))
 	}
 	return str
 }
 
-func BlockHashString(block interface{ GetHahs() crypto.Hash }) (string, error) {
-	if block == nil {
-		return "", errors.New("block is nil")
+// ShortHashString возвращает первые 8 символов хеша
+func ShortHashString(hash Hash) (string, error) {
+	full, err := HashToString(hash)
+	if err != nil {
+		return "", err
 	}
-
-	hash := block.GetHahs()
-	if hash == nil {
-		return "", errors.New("block hash is nil")
+	if len(full) > 8 {
+		return full[:8], nil
 	}
-
-	return HashToString(hash)
+	return full, nil
 }
 
-func IsValidHahs(hashStr string) bool {
-	if len(hashStr) != 64 {
-		return false
+// FormatHashWithPrefix добавляет префикс к строковому представлению хеша
+func FormatHashWithPrefix(prefix string, hash Hash) (string, error) {
+	hashStr, err := HashToString(hash)
+	if err != nil {
+		return "", err
 	}
-
-	_, err := HexToBytes(hashStr)
-	return err == nil
+	return fmt.Sprintf("%s: %s", prefix, hashStr), nil
 }
 
-func HashEquals(h1, h2 crypto.Hash) bool {
+// HashEquals сравнивает два хеша
+func HashEquals(h1, h2 Hash) bool {
 	if h1 == nil || h2 == nil {
 		return h1 == nil && h2 == nil
 	}
-
 	if len(h1) != len(h2) {
 		return false
 	}
-
 	for i := range h1 {
 		if h1[i] != h2[i] {
 			return false
 		}
 	}
-
 	return true
 }
 
-func HashBytes(hash crypto.Hash) []byte {
-	if hash == nil {
-		return nil
-	}
-
-	result := make([]byte, len(hash))
-	copy(result, hash)
-	return result
-}
-
-func HashFromBytes(data []byte) (crypto.Hash, error) {
+// HashFromBytes создаёт хеш из сырых байтов (проверяет длину)
+func HashFromBytes(data []byte) (Hash, error) {
 	if data == nil {
 		return nil, errors.New("data is nil")
 	}
-
 	if len(data) == 0 {
 		return nil, errors.New("data is empty")
 	}
-
 	if len(data) != 32 {
 		return nil, fmt.Errorf("invalid hash length: expected 32 bytes, got %d", len(data))
 	}
-
-	return crypto.Hash(data), nil
-}
-
-func ShortHashString(hash crypto.Hash) (string, error) {
-	full, err := HashToString(hash)
-	if err != nil {
-		return "", err
-	}
-
-	if len(full) > 8 {
-		return full[:8], nil
-	}
-
-	return full, nil
-}
-
-func FormatHashWithPrefix(prefix string, hash crypto.Hash) (string, error) {
-	hashStr, err := HashToString(hash)
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("%s: %s", prefix, hashStr), nil
+	return Hash(data), nil
 }

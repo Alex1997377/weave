@@ -1,4 +1,4 @@
-package crypto
+package hash
 
 import (
 	"crypto/sha256"
@@ -7,8 +7,10 @@ import (
 	"github.com/Alex1997377/weave/internal/core/block/interfaces"
 )
 
+// Hash представляет собой 32-байтовый хеш
 type Hash []byte
 
+// String возвращает hex-представление хеша
 func (h Hash) String() string {
 	if h == nil {
 		return "<nil>"
@@ -16,6 +18,7 @@ func (h Hash) String() string {
 	return hex.EncodeToString(h)
 }
 
+// Bytes возвращает копию хеша в виде []byte
 func (h Hash) Bytes() []byte {
 	if h == nil {
 		return nil
@@ -25,32 +28,23 @@ func (h Hash) Bytes() []byte {
 	return result
 }
 
+// IsValidForDifficulty проверяет, удовлетворяет ли хеш заданной сложности
 func (h Hash) IsValidForDifficulty(difficulty int) bool {
-	// difficulty is not been unpositive and empty hash is not been validate
 	if difficulty < 0 || len(h) == 0 {
 		return false
 	}
 
-	// protected from exit without slice range
-	// Hash: [0, 0, 45, 12, ...]
-	//     ↑  ↑
-	//   byte0 byte1 (first 2 bytes must been 0)
 	fullBytes := difficulty / 8
 	if fullBytes > len(h) {
 		fullBytes = len(h)
 	}
 
-	// check the first N - bytes is 0
-	// ✅ [0, 0, 45, 12, ...] - valid (first 2 bytes = 0)
-	// ❌ [0, 5, 45, 12, ...] - invalid (2-й byte ≠ 0)
-	// ❌ [1, 0, 45, 12, ...] - invalid (1-й byte ≠ 0)
 	for i := 0; i < fullBytes; i++ {
 		if h[i] != 0 {
 			return false
 		}
 	}
 
-	// check remaining bits
 	remainingBits := difficulty % 8
 	if remainingBits > 0 && fullBytes < len(h) {
 		mask := byte(0xFF << (8 - remainingBits))
@@ -62,19 +56,22 @@ func (h Hash) IsValidForDifficulty(difficulty int) bool {
 	return true
 }
 
+// HashPublicKey хеширует публичный ключ (возвращает первые 20 байт)
 func HashPublicKey(pubKey []byte) []byte {
 	hash := sha256.Sum256(pubKey)
 	return hash[:20]
 }
 
+// HashBytes вычисляет SHA256 от данных и возвращает Hash
 func HashBytes(data []byte) Hash {
 	sum := sha256.Sum256(data)
 	return Hash(sum[:])
 }
 
+// HashCalculatorImpl реализует интерфейс interfaces.HashCalculator
 type HashCalculatorImpl struct{}
 
+// Hash вычисляет хеш от данных и возвращает интерфейс interfaces.Hash
 func (HashCalculatorImpl) Hash(data []byte) interfaces.Hash {
-	hash := sha256.Sum256(data)
-	return Hash(hash[:])
+	return HashBytes(data)
 }
