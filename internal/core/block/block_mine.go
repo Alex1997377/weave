@@ -9,23 +9,21 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Alex1997377/weave/internal/core/block"
 	"github.com/Alex1997377/weave/internal/core/block/interfaces"
 )
+
+type MineConfig struct {
+	NumWorkers int
+	Verbose    bool
+	Timeout    time.Duration
+	Hasher     interfaces.HashCalculator
+}
 
 // Для переиспользования байтовых беферов
 var headerBufferPool = sync.Pool{
 	New: func() interface{} {
 		return make([]byte, 0, 32)
 	},
-}
-
-// Содержит параметры майнинга
-type MineConfig struct {
-	NumWorkers int
-	Verbose    bool
-	Timeout    time.Duration
-	Hasher     interfaces.HashCalculator
 }
 
 func (b *Block) Mine(ctx context.Context, config MineConfig) error {
@@ -64,6 +62,10 @@ func (b *Block) Mine(ctx context.Context, config MineConfig) error {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, config.Timeout)
 		defer cancel()
+	}
+
+	if config.Hasher == nil {
+		return errors.New("hasher is required")
 	}
 
 	step := uint64(1 << 20)
@@ -110,7 +112,7 @@ func (b *Block) Mine(ctx context.Context, config MineConfig) error {
 // -----------------------
 
 type workerArgs struct {
-	b           *block.Block
+	b           *Block
 	baseHeader  []byte
 	nonceOffset int
 	startNonce  uint64
@@ -161,10 +163,10 @@ func mineWorker(args *workerArgs, wg *sync.WaitGroup) {
 		headerBuf[args.nonceOffset+6] = byte(nonce >> 48)
 		headerBuf[args.nonceOffset+7] = byte(nonce >> 56)
 
-		hash := args.config.Hash(headerBuf)
+		hash := args.config.Hasher.Hash(headerBuf)
 
-		*headerButPtr = headerBuf[:0]
-		headerBufferPool.Put(headerButPtr)
+		*headerBufPtr = headerBuf[:0]
+		headerBufferPool.Put(headerBufPtr)
 
 		if hash.IsValidForDifficulty(args.b.Header.Difficulty) {
 			if args.found.CompareAndSwap(false, true) {
