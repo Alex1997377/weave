@@ -3,6 +3,7 @@ package benchmark
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"testing"
 	"time"
 
@@ -32,7 +33,7 @@ func createTestBlock(index, difficulty int) *block.Block {
 func BenchmarkMine(b *testing.B) {
 	difficulty := 10 // умеренная сложность, чтобы каждая итерация была измеримой
 
-	for _, workers := range []int{1, 2, 4, 8, 16} {
+	for _, workers := range []int{1, runtime.NumCPU(), 2 * runtime.NumCPU()} {
 		b.Run(fmt.Sprintf("workers=%d", workers), func(b *testing.B) {
 			hasher := &hash.HashCalculatorImpl{}
 			config := block.MineConfig{

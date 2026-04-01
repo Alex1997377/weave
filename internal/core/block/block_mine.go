@@ -22,7 +22,8 @@ type MineConfig struct {
 // Для переиспользования байтовых беферов
 var headerBufferPool = sync.Pool{
 	New: func() interface{} {
-		return make([]byte, 0, 32)
+		buf := make([]byte, 0, 512)
+		return &buf
 	},
 }
 
@@ -88,11 +89,10 @@ func (b *Block) Mine(ctx context.Context, config MineConfig) error {
 	}
 
 	wg.Wait()
-	close(stopCh)
 
 	if !found.Load() {
-		if ctx.Err() == context.DeadlineExceeded {
-			return errors.New("mining timeout")
+		if err := ctx.Err(); err != nil {
+			return err
 		}
 		return errors.New("mining failed to find valid nonce")
 	}
