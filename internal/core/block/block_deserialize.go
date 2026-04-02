@@ -1,4 +1,3 @@
-// block_deserialize.go (полностью, с исправлениями)
 package block
 
 import (
@@ -15,17 +14,29 @@ import (
 	"github.com/Alex1997377/weave/pkg/utils"
 )
 
+// These constants are defining the maximum number of transactions allowed in a block
+// (`MaxTransactions`), the size of a hash in bytes (`HashSize`), and the minimum block size in bytes
+// (`minBlockSize`).
 const (
 	MaxTransactions = 10000
 	HashSize        = 32
 	minBlockSize    = 32 + 4 + 32 + 4
 )
 
+// The `DeserializeOptions` type in Go contains fields for header and transaction deserializers.
+// @property Header - The `Header` property in the `DeserializeOptions` struct is of type
+// `interfaces.HeaderDeserializer`. This property is likely used for deserializing header data during
+// the deserialization process.
+// @property Tx - The `Tx` property in the `DeserializeOptions` struct is of type
+// `interfaces.TransactionDeserializer`. This property is likely used for deserializing transactions
+// during the deserialization process.
 type DeserializeOptions struct {
 	Header interfaces.HeaderDeserializer
 	Tx     interfaces.TransactionDeserializer
 }
 
+// The function `DeserializeBlockWithparallelPooled` deserializes a block from byte data in parallel
+// using a worker pool.
 func DeserializeBlockWithparallelPooled(data []byte, opts DeserializeOptions) (*Block, error) {
 	if len(data) < minBlockSize {
 		return nil, fmt.Errorf("data too short for block")
@@ -112,6 +123,8 @@ func DeserializeBlockWithparallelPooled(data []byte, opts DeserializeOptions) (*
 	return block, nil
 }
 
+// The function DeserializeBlock deserializes a block using parallel pooling with specified
+// deserializers.
 func DeserializeBlock(data []byte) (*Block, error) {
 	return DeserializeBlockWithparallelPooled(data, DeserializeOptions{
 		Header: interfaces.RealHeaderDeserializer{},
@@ -119,10 +132,15 @@ func DeserializeBlock(data []byte) (*Block, error) {
 	})
 }
 
+// The function DeserializeTransaction takes a bytes.Reader as input and returns a deserialized
+// transaction along with any error encountered.
 func DeserializeTransaction(buf *bytes.Reader) (transaction.Transaction, error) {
 	return transaction.DeserializeTransactionFromReader(buf)
 }
 
+// The `findTransactionBoundaries` function parses a byte slice to determine transaction boundaries
+// based on a given transaction count and checks for errors related to transaction header bounds and
+// signature size.
 func findTransactionBoundaries(data []byte, txCount uint32) ([]int, error) {
 	boundaries := make([]int, txCount+1)
 	offset := 0

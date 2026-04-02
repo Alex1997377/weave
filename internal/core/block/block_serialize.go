@@ -2,9 +2,10 @@ package block
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"errors"
 	"fmt"
+
+	"github.com/Alex1997377/weave/internal/crypto/hash"
 )
 
 func (b *Block) Serialize() ([]byte, error) {
@@ -40,6 +41,11 @@ func (b *Block) Serialize() ([]byte, error) {
 		}
 	}
 
+	_, err = buf.Write(b.Hash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write block hash: %w", err)
+	}
+
 	return buf.Bytes(), nil
 }
 
@@ -53,8 +59,7 @@ func (b *Block) CalculateHash() ([]byte, error) {
 		return nil, fmt.Errorf("failed to serialize header: %w", err)
 	}
 
-	hash := sha256.Sum256(data)
-	return hash[:], nil
+	return hash.HashBytes(data).Bytes(), nil
 }
 
 func (b *Block) CalculateSize() (uint32, error) {
@@ -73,17 +78,13 @@ func (b *Block) CalculateSize() (uint32, error) {
 		if tx == nil {
 			return 0, fmt.Errorf("transaction at index %d is nil during size calculation", i)
 		}
-
 		txBytes, err := tx.TransactionSerialize()
 		if err != nil {
 			return 0, fmt.Errorf("failed to serialize transaction %d for size calculation: %w", i, err)
 		}
-
 		transactionsSize += uint32(len(txBytes))
 	}
 
-	hashSize := uint32(len(b.Hash))
-
+	hashSize := uint32(len(b.Hash)) // <-- добавляем хеш
 	return headerSize + transactionsSize + hashSize, nil
 }
-
