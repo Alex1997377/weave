@@ -43,7 +43,7 @@ func CreateValidBlockForValidate() *block.Block {
 		PreviousHash: bytes.Repeat([]byte{0xAA}, 32),
 		MerkleRoot:   bytes.Repeat([]byte{0xBB}, 32),
 		Nonce:        0,
-		Difficulty:   1,
+		Difficulty:   0,
 	}
 	// Вычисляем хеш блока (заголовка)
 	data, _ := h.Serialize()

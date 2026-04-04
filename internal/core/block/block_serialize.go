@@ -50,16 +50,14 @@ func (b *Block) Serialize() ([]byte, error) {
 }
 
 func (b *Block) CalculateHash() ([]byte, error) {
-	if b == nil {
-		return nil, errors.New("block is nil")
-	}
-
-	data, err := b.Header.Serialize()
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize header: %w", err)
-	}
-
-	return hash.HashBytes(data).Bytes(), nil
+    if b == nil {
+        return nil, errors.New("block is nil")
+    }
+    data, err := b.Header.Serialize()
+    if err != nil {
+        return nil, fmt.Errorf("failed to serialize header: %w", err)
+    }
+    return hash.HashBytes(data).Bytes(), nil
 }
 
 func (b *Block) CalculateSize() (uint32, error) {

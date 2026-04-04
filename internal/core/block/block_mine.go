@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Alex1997377/weave/internal/core/block/interfaces"
+	"github.com/Alex1997377/weave/internal/crypto/hash"
 )
 
 type MineConfig struct {
@@ -34,6 +35,20 @@ func (b *Block) Mine(ctx context.Context, config MineConfig) error {
 
 	if b.Header.Difficulty < 0 {
 		return errors.New("block difficulty cannot be negative")
+	}
+
+	if config.Hasher == nil {
+		config.Hasher = &hash.HashCalculatorImpl{}
+	}
+
+	if b.Header.Difficulty == 0 {
+		hash, err := b.CalculateHash()
+		if err != nil {
+			return err
+		}
+
+		b.Hash = hash
+		return nil
 	}
 
 	if config.NumWorkers <= 0 {
@@ -98,7 +113,7 @@ func (b *Block) Mine(ctx context.Context, config MineConfig) error {
 	}
 
 	b.Hash = hashResult
-	b.Header.Nonce = int(winnerNonce.Load())
+	b.Header.Nonce = winnerNonce.Load()
 	if config.Verbose {
 		fmt.Printf("Mined! Nonce=%d, hash=%x, time=%v\n",
 			b.Header.Nonce, hashResult, time.Since(startTime))

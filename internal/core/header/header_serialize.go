@@ -6,7 +6,6 @@ import (
 
 	"github.com/Alex1997377/weave/internal/core/header/errors"
 	"github.com/Alex1997377/weave/internal/core/header/errors/constants"
-	"github.com/Alex1997377/weave/internal/crypto/serialize"
 	"github.com/Alex1997377/weave/pkg/utils"
 )
 
@@ -31,31 +30,18 @@ func (h *Header) Validate(op string) error {
 	if h.Difficulty < 0 {
 		return errors.NewDifficultyError(op, h.Difficulty, 0, 255)
 	}
-	if h.Nonce < 0 {
-		return errors.NewNonceError(op, int64(h.Nonce))
-	}
 
 	return nil
 }
 
 func (h *Header) Serialize() ([]byte, error) {
-	if err := h.Validate(constants.OpSerialize); err != nil {
+	// Получаем сериализованный заголовок с нулевым nonce и смещение
+	data, nonceOffset, err := h.SerializeWithoutNonce()
+	if err != nil {
 		return nil, err
 	}
-
-	data, err := serialize.SerializeHeader(
-		h.Index, h.Timestamp, h.PreviousHash,
-		h.MerkleRoot, h.Nonce, h.Difficulty,
-	)
-
-	if err != nil || len(data) == 0 {
-		reason := "crypto_serialize"
-		if err == nil {
-			reason = "empty result"
-		}
-		return nil, errors.NewSerializationError(constants.OpSerialize, reason, err)
-	}
-
+	// Записываем реальный nonce как uint64 (8 байт) в нужное место
+	binary.LittleEndian.PutUint64(data[nonceOffset:], uint64(h.Nonce))
 	return data, nil
 }
 
