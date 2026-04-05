@@ -1,0 +1,128 @@
+# 23.02.2026
+
+## Шаг 2: Описание структур (Data Models) ✅
+- Начни с файла internal/core/block.go. Опиши две структуры, о которых мы говорили:
+ Header (Index, Timestamp, PrevHash, MerkleRoot, Nonce, Difficulty). ✅
+ Block (включает Header, список транзакций и свой Hash). ✅
+## Шаг 3: Реализация сериализации и хеширования ✅
+- В том же файле напиши методы:
+ Serialize() для заголовка (превращаем поля в []byte). Начни с простого bytes.Join, если gob кажется сложным. ✅
+ CalculateHash(), который вызывает Serialize и прогоняет результат через sha256.Sum256. ✅
+## Шаг 4: Конструктор блока ✅
+- Напиши функцию NewBlock(...). Она должна:
+ Принять данные (транзакции) и хеш предыдущего блока. ✅
+ Создать Header. ✅
+- Важно: Вызвать функцию для расчета MerkleRoot (пока можешь сделать заглушку, которая просто склеивает ID транзакций). ✅
+## Шаг 5: Цепочка (Blockchain)
+- Создай файл internal/core/chain.go. ✅
+- Опиши структуру Blockchain (слайс блоков). ✅
+- Напиши метод AddBlock(transactions). Он должен находить последний хеш в цепи и передавать его в NewBlock. ✅
+- Не забудь про Genesis Block (самый первый блок с пустым PrevHash). ✅
+## Шаг 6: Проверка (Validation)
+- Напиши метод IsValid(). Это твой главный «тестер»: ✅
+- Пройди циклом по цепи. ✅
+- Проверь: Current.PrevHash == Previous.Hash. ✅
+- Проверь: Current.Hash == Current.CalculateHash(). ✅
+
+
+## Дополнительно
+- Замените типы всех хешей в Block, Header и Transaction на []byte. ✅
+- Создайте пакет utils с функцией BytesToHex. ✅
+- В интерфейсе Transaction измените GetID() string на GetID() []byte ✅
+
+# 28.02.2026
+
+## Шаг 1: Усовершенствованная структура
+### С чего начать: Раздели текущую структуру Block на две: Header и Body. ✅
+- Шаг 1.1: Выделение Header. Перенеси туда PreviousHash, MerkleRoot, Timestamp, Nonce и Difficulty. ✅
+- Шаг 1.2: Merkle Root. Реализуй функцию, которая попарно хеширует ID транзакций. ✅
+    Где искать: Загугли «Merkle Tree implementation in Go». Обрати внимание на пакет container/list или просто используй рекурсию со слайсами.
+- Шаг 1.3: Расчет размера. Добавь поле Size int. Реализуй его через len(block.Serialize()). ✅
+    Инфо: Изучи пакет encoding/binary для компактной записи чисел в байты.
+## Шаг 2: Система транзакций
+### С чего начать: Создай папку internal/core/transaction. ✅
+- Шаг 2.1: Интерфейс Transaction. Ты его уже начал. Добавь типы: TransferTx (обычный перевод), DataTx (сообщение), CoinbaseTx (награда майнеру — у неё нет отправителя). ✅
+- Шаг 2.2: Цифровые подписи. Это самый сложный этап. ✅
+    Инфо: Изучи пакет crypto/ecdsa (стандарт для Bitcoin/Ethereum) или crypto/ed25519. Тебе нужно понять, как privateKey.Sign() создает подпись и как publicKey.Verify() её проверяет. 
+- Шаг 2.3: Transaction Pool (Mempool). Создай структуру Mempool, которая хранит транзакции в очереди перед тем, как они попадут в блок. ✅
+    Механика: При получении транзакции проверяй её через Validate() и Verify(), и только потом клади в пул.
+## Шаг 3: Криптографический кошелек
+### С чего начать: Создай пакет internal/wallet.
+- Шаг 3.1: Генерация ключей. Напиши функцию, которая возвращает пару PrivateKey и PublicKey. ✅
+- Шаг 3.2: Вывод адреса. Адрес — это не сам ключ, а его хеш.
+    Для генерации ключей использовали ed25519 ✅ 
+    Инфо: Использовали концепуию штфрования на элептической кривой
+- Шаг Дополнительно: пишием метод для проверки подписи транзакции, а также загрузку и получению ключей из OS. ✅
+- Шаг 3.3: Расчет баланса. Блокчейн не хранит баланс «в ячейке». Тебе нужно просканировать всю цепочку блоков и просуммировать все транзакции, где адрес кошелька был получателем, и вычесть те, где он был отправителем. ✅
+## Шаг 4: Постоянное хранение (Persistence)
+### С чего начать: Выбери встраиваемую базу данных (Key-Value). В мире Go стандартом является BoltDB или BadgerDB.
+- Шаг 4.1: Схема хранения.
+    Ключ: b + Hash -> Значение: Сериализованный блок.
+    Ключ: l -> Значение: Хеш последнего блока (чтобы быстро возобновить цепь после перезапуска).
+- Шаг 4.2: Интерфейс Repository. Создай интерфейс Store с методами SaveBlock(b *Block) и GetBlock(hash []byte).
+    Инфо: Посмотри туториалы по «BoltDB Go blockchain implementation».
+## Шаг 5: Тестирование
+### С чего начать: Создай файлы с суффиксом _test.go рядом с каждым модулем.
+- Шаг 5.1: Unit-тесты. Проверь CalculateHash (что он всегда одинаков для одних данных) и Validate транзакций.
+- Шаг 5.2: Тестирование ошибок. Напиши тест, который специально ломает блок (меняет Amount) и убеждается, что IsValid() возвращает твой ErrMerkleRootMismatch.
+- Шаг 5.3: Интеграционный тест. Сценарий: Создать 2 кошелька -> Сгенерировать транзакцию -> Добавить в Mempool -> Смайнить блок -> Проверить баланс кошельков.
+
+
+Тесты:
+    block
+        block_deserialize_test:
+            TestDeserializeBlockWithDeps_Success ✅ 
+            TestDeserializeBlockWithDeps_TransactionCountTooHigh ✅
+            TestDeserializeBlockWithDeps_TransactionError ✅
+            TestDeserializeBlockWithDeps_InvalidHashLength 
+            TestDeserializeBlockWithDeps_InvalidBlockSize ✅
+            TestDeserializeBlockWithDeps_ExtraData ✅
+            TestDeserializeBlockWithDeps_ZeroTransactions ✅
+            TestDeserializeBlockWithDeps_MaxTransactions ✅
+        block_deserialize_benchmark:
+    block
+        benchmark_test_block_deserialize:
+            BenchmarkDeserializeBlock ✅
+            BenchmarkDeserializedBlockParallel ✅
+                ok      github.com/Alex1997377/weave/internal/core/block/tests  0.942s
+
+    block
+        block_hash_test:
+            TestBlock_HashString ✅
+            TestBlock_ShortHash ✅
+            TestBlock_FormatHash ✅
+       
+    block
+        block_merkle_test:
+            TestBlock_CalculateMerkleRootWithError ✅
+            TestBlock_CalculateMerkleRoot ✅
+            TestBlock_SetMerkleRoot ✅
+
+
+
+Оптимизация - рефакторинг:
+    block:
+        block_deserialize:
+            DeserializeBlockWithDeps:
+                добавлена многопоточность ✅
+                добавлены интерфейсы для гибкости тестирования ✅ 
+        block_hash:
+            добавлен общий метод HashBytes для проверки блока на nil во всех методах ✅
+            тестирование легкое, пока интерфейсы не нужны ✅
+        block_merkle:
+            
+
+
+
+
+
+
+
+
+### Интеграционное тестирование (ПОСЛЕ ВСЕХ ТЕСТОВ):
+- Инициализировать пустое хранилище (in‑memory).
+- Создать генезис‑блок (без транзакций, с произвольным nonce).
+- Добавить несколько транзакций (отправитель/получатель).
+- Создать следующий блок, майнить его, сериализовать, сохранить.
+- Загрузить цепочку, проверить её валидность.
+- Вывести баланс кошелька (если есть).
