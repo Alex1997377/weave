@@ -7,18 +7,19 @@ import (
 
 	"github.com/Alex1997377/weave/internal/core/block"
 	"github.com/Alex1997377/weave/internal/core/transaction"
+	"github.com/Alex1997377/weave/internal/store"
 )
 
 const DIFFICULTY int = 4
 
 type Blockchain struct {
-	store  block.BlockStore // Приватное поле
+	store  store.BlockStore // Приватное поле
 	Tip    []byte
 	Blocks []*block.Block
 }
 
 // NewBlockchain создает новую или восстанавливает существующую цепочку
-func NewBlockchain(store block.BlockStore) (*Blockchain, error) {
+func NewBlockchain(store store.BlockStore) (*Blockchain, error) {
 	if store == nil {
 		return nil, errors.New("store cannot be nil")
 	}
