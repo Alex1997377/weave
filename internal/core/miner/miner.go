@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Alex1997377/weave/internal/core/block"
+	"github.com/Alex1997377/weave/internal/core/chain"
 	"github.com/Alex1997377/weave/internal/core/transaction"
 )
 
@@ -15,17 +16,10 @@ type Mempool interface {
 	Remove(txs []transaction.Transaction)
 }
 
-type Chain interface {
-	AddBlock(blk *block.Block) error
-	GetBlockByHash(hash []byte) (*block.Block, error)
-	GetBlockByIndex(index int) (*block.Block, error)
-	GetLastBlock() (*block.Block, error)
-}
-
 type Config struct {
 	Difficulty int
 	Mempool    Mempool
-	Chain      Chain
+	Chain      chain.Chain
 	Interval   time.Duration
 }
 

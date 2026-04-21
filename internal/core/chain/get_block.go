@@ -1,24 +1,31 @@
 package chain
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/Alex1997377/weave/internal/core/block"
 )
 
 // GetBlockByHash возвращает блок по хешу
 func (bc *Blockchain) GetBlockByHash(hash []byte) (*block.Block, error) {
 	if hash == nil {
-		return nil, errors.New("hash cannot be nil")
+		return nil, NewInvalidHashError("hash cannot be nil", nil)
 	}
-	return bc.store.GetBlock(hash)
+
+	blk, err := bc.store.GetBlock(hash)
+	if err != nil {
+		return nil, NewChainCorruptedError("failed to get block from store", err)
+	}
+	if blk == nil {
+		return nil, NewBlockNotFoundError("block not found", nil)
+	}
+
+	return blk, nil
+
 }
 
 // GetBlockByIndex возвращает блок по индексу
 func (bc *Blockchain) GetBlockByIndex(index int) (*block.Block, error) {
 	if index < 0 || index >= len(bc.Blocks) {
-		return nil, fmt.Errorf("block index %d out of range", index)
+		return nil, NewBlockNotFoundError("block index out of range", nil)
 	}
 	return bc.Blocks[index], nil
 }
