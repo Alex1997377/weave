@@ -22,3 +22,10 @@ func (bc *Blockchain) GetBlockByIndex(index int) (*block.Block, error) {
 	}
 	return bc.Blocks[index], nil
 }
+
+func (bc *Blockchain) GetLastBlock() (*block.Block, error) {
+	if len(bc.Blocks) == 0 {
+		return nil, NewBlockNotFoundError("no blocks in chain", nil)
+	}
+	return bc.Blocks[len(bc.Blocks)-1], nil
+}

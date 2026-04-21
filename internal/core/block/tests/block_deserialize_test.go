@@ -14,6 +14,30 @@ import (
 	"github.com/Alex1997377/weave/internal/core/transaction"
 )
 
+// TestDeserializeBlockWithDeps_Success проверяет успешную десериализацию блока
+// с корректными данными и использованием параллельного пула.
+//
+// Входные данные:
+//   - Количество транзакций: 3 (txCount = 3)
+//   - Каждая транзакция создаётся через helpers.CreateTestTransaction с ID 1,2,3.
+//   - Данные блока формируются через helpers.CreateValidBlockData, которая записывает:
+//        * 32 байта заголовка (0xAA...)
+//        * txCount (uint32, little-endian)
+//        * сериализованные транзакции
+//        * 32 байта хеша (0xCC...)
+//        * размер блока (uint32, значение 12345)
+//   - Используются моки для десериализации заголовка и транзакций.
+//
+// Ожидаемый результат:
+//   - Блок успешно десериализуется, ошибка nil.
+//   - Количество транзакций в блоке равно txCount (3).
+//   - Поле Size блока равно 12345.
+//   - Поле Hash блока состоит из 32 байт со значением 0xCC.
+//   - Мок десериализатора транзакций вызывается ровно txCount раз.
+//
+// Выходные значения:
+//   - blk: *block.Block – указатель на десериализованный блок.
+//   - err: nil.
 func TestDeserializeBlockWithDeps_Success(t *testing.T) {
 	txCount := uint32(3)
 	transactions := []transaction.Transaction{
@@ -40,6 +64,7 @@ func TestDeserializeBlockWithDeps_Success(t *testing.T) {
 
 	headerMock := &mocks.MockHeaderDeserializer{
 		MockFunc: func(r *bytes.Reader) (*header.Header, error) {
+			// Читаем 32 байта, чтобы продвинуть указатель (имитация чтения заголовка)
 			r.Read(make([]byte, 32))
 			return &header.Header{Index: 42}, nil
 		},
@@ -68,14 +93,27 @@ func TestDeserializeBlockWithDeps_Success(t *testing.T) {
 	}
 
 	mu.Lock()
-
 	if callCount != int(txCount) {
 		t.Errorf("tx mock called %d times, want %d", callCount, txCount)
 	}
-
 	mu.Unlock()
 }
 
+// TestDeserializeBlockWithDeps_ZeroTransactions проверяет десериализацию блока,
+// содержащего 0 транзакций.
+//
+// Входные данные:
+//   - txCount = 0
+//   - Пустой слайс транзакций.
+//   - Данные блока формируются через helpers.CreateValidBlockData.
+//
+// Ожидаемый результат:
+//   - Десериализация успешна, ошибка nil.
+//   - Поле Transaction в блоке – пустой слайс (len = 0).
+//
+// Выходные значения:
+//   - blk: *block.Block – корректный блок с нулём транзакций.
+//   - err: nil.
 func TestDeserializeBlockWithDeps_ZeroTransactions(t *testing.T) {
 	data := helpers.CreateValidBlockData(t, 0, []transaction.Transaction{})
 	opts := block.DeserializeOptions{
@@ -93,6 +131,21 @@ func TestDeserializeBlockWithDeps_ZeroTransactions(t *testing.T) {
 	}
 }
 
+// TestDeserializeBlockWithDeps_TransactionCountTooHigh проверяет обработку
+// ситуации, когда количество транзакций в блоке превышает максимально допустимое.
+//
+// Входные данные:
+//   - txCount = 10001 (максимум по условию задачи – 10000)
+//   - Остальные поля блока заполнены фиктивными данными (заголовок, хеш, размер).
+//
+// Ожидаемый результат:
+//   - Десериализация возвращает ошибку с текстом:
+//        "transaction count too high: 10001 (max: 10000)"
+//   - Блок не создаётся (nil).
+//
+// Выходные значения:
+//   - blk: nil
+//   - err: error с указанным сообщением.
 func TestDeserializeBlockWithDeps_TransactionCountTooHigh(t *testing.T) {
 	buf := &bytes.Buffer{}
 
@@ -117,6 +170,25 @@ func TestDeserializeBlockWithDeps_TransactionCountTooHigh(t *testing.T) {
 	}
 }
 
+// TestDeserializeBlockWithDeps_TransactionError проверяет поведение при ошибке
+// десериализации одной из транзакций.
+//
+// Входные данные:
+//   - Блок с 2 транзакциями.
+//   - Первая транзакция корректна.
+//   - Вторая транзакция при десериализации вызывает ошибку "simulated error"
+//     (имитируется по ID, где id[0] == 2).
+//   - Мок десериализатора транзакций возвращает ошибку для второй транзакции.
+//
+// Ожидаемый результат:
+//   - Десериализация возвращает ошибку с текстом "tx 1 missing"
+//     (индексация с 0, вторая транзакция имеет индекс 1).
+//   - Мок десериализатора вызывается ровно 2 раза (попытка прочитать обе транзакции).
+//   - Блок не возвращается (nil).
+//
+// Выходные значения:
+//   - blk: nil
+//   - err: error с сообщением "tx 1 missing".
 func TestDeserializeBlockWithDeps_TransactionError(t *testing.T) {
 	buf := &bytes.Buffer{}
 
@@ -124,12 +196,10 @@ func TestDeserializeBlockWithDeps_TransactionError(t *testing.T) {
 	binary.Write(buf, binary.LittleEndian, uint32(2))
 
 	tx1 := helpers.CreateTestTransaction(1)
-
 	tx1Data, _ := tx1.TransactionSerialize()
 	buf.Write(tx1Data)
 
 	tx2 := helpers.CreateTestTransaction(2)
-
 	tx2Data, _ := tx2.TransactionSerialize()
 	buf.Write(tx2Data)
 
@@ -188,6 +258,21 @@ func TestDeserializeBlockWithDeps_TransactionError(t *testing.T) {
 	}
 }
 
+// TestDeserializeBlockWithDeps_ExtraData проверяет, что при наличии лишних
+// данных после всех ожидаемых полей блока возникает ошибка.
+//
+// Входные данные:
+//   - Блок с 0 транзакций, корректным заголовком, хешем и размером (100).
+//   - После размера блока добавляется один лишний байт (0xFF).
+//
+// Ожидаемый результат:
+//   - Десериализация возвращает ошибку с текстом:
+//        "extra data after block deserialization: 1 bytes remaining"
+//   - Блок не возвращается (nil).
+//
+// Выходные значения:
+//   - blk: nil
+//   - err: error с указанным сообщением.
 func TestDeserializeBlockWithDeps_ExtraData(t *testing.T) {
 	buf := &bytes.Buffer{}
 
@@ -209,7 +294,6 @@ func TestDeserializeBlockWithDeps_ExtraData(t *testing.T) {
 	}
 
 	expected := "extra data after block deserialization: 1 bytes remaining"
-
 	if err.Error() != expected {
 		t.Errorf("expected %q, got %q", expected, err.Error())
 	}
@@ -219,6 +303,19 @@ func TestDeserializeBlockWithDeps_ExtraData(t *testing.T) {
 	}
 }
 
+// TestDeserializeBlockWithDeps_InvalidBlockSize проверяет, что при указании
+// нулевого размера блока (или явно невалидного) возникает ошибка.
+//
+// Входные данные:
+//   - Блок с 0 транзакций, корректным заголовком, хешем и размером, равным 0.
+//
+// Ожидаемый результат:
+//   - Десериализация возвращает ошибку с текстом "invalid block size".
+//   - Блок не возвращается (nil).
+//
+// Выходные значения:
+//   - blk: nil
+//   - err: error с сообщением "invalid block size".
 func TestDeserializeBlockWithDeps_InvalidBlockSize(t *testing.T) {
 	buf := &bytes.Buffer{}
 
@@ -248,6 +345,24 @@ func TestDeserializeBlockWithDeps_InvalidBlockSize(t *testing.T) {
 	}
 }
 
+// TestDeserializeBlockWithDeps_MaxTransactions проверяет десериализацию блока
+// с максимально допустимым количеством транзакций (10000).
+//
+// Входные данные:
+//   - txCount = 10000 (максимальное значение).
+//   - Для каждой транзакции генерируются корректные данные через
+//     helpers.CreateTestTransaction с циклическим ID от 0 до 255.
+//   - Все транзакции сериализуются и записываются в буфер.
+//   - Используется мок-десериализатор, который корректно разбирает каждую транзакцию.
+//
+// Ожидаемый результат:
+//   - Десериализация успешна, ошибка nil.
+//   - Количество транзакций в блоке равно 10000.
+//   - Мок десериализатора вызван ровно 10000 раз.
+//
+// Выходные значения:
+//   - blk: *block.Block с 10000 транзакций.
+//   - err: nil.
 func TestDeserializeBlockWithDeps_MaxTransactions(t *testing.T) {
 	txCount := uint32(10000)
 	buf := &bytes.Buffer{}
@@ -257,9 +372,7 @@ func TestDeserializeBlockWithDeps_MaxTransactions(t *testing.T) {
 
 	for i := uint32(0); i < txCount; i++ {
 		tx := helpers.CreateTestTransaction(byte(i % 256))
-
 		txData, _ := tx.TransactionSerialize()
-
 		buf.Write(txData)
 	}
 

@@ -1,8 +1,6 @@
 package chain
 
 import (
-	"fmt"
-
 	"github.com/Alex1997377/weave/internal/core/block"
 )
 
@@ -14,27 +12,32 @@ func (bc *Blockchain) loadBlocks() error {
 	for currentHash != nil {
 		b, err := bc.store.GetBlock(currentHash)
 		if err != nil {
-			return fmt.Errorf("failed to get block %x: %w", currentHash, err)
+			return NewChainCorruptedError("failed to get block", err)
 		}
-
-		// Вставляем в начало среза (обратный порядок)
-		blocks = append([]*block.Block{b}, blocks...)
-
-		// Проверяем, дошли ли до генезис блока
-		isGenesis := true
-		for _, bVal := range b.Header.PreviousHash {
-			if bVal != 0 {
-				isGenesis = false
-				break
-			}
+		if b == nil {
+			return NewBlockNotFoundError("block not found in store", nil)
 		}
+		blocks = append(blocks, b)
 
-		if isGenesis {
+		if isGenesis(b) {
 			break
 		}
 		currentHash = b.Header.PreviousHash
 	}
 
+	for i, j := 0, len(blocks)-1; i < j; i, j = i+1, j-1 {
+		blocks[i], blocks[j] = blocks[j], blocks[i]
+	}
+
 	bc.Blocks = blocks
 	return nil
+}
+
+func isGenesis(b *block.Block) bool {
+	for _, v := range b.Header.PreviousHash {
+		if v != 0 {
+			return false
+		}
+	}
+	return true
 }

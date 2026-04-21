@@ -10,6 +10,37 @@ import (
 	"github.com/Alex1997377/weave/internal/core/transaction"
 )
 
+// TestBlock_CalculateMerkleRootWithError тестирует метод CalculateMerkleRootWithError().
+// Метод вычисляет корень Меркла для всех транзакций блока и возвращает ошибку при любых проблемах.
+//
+// Сценарии тестирования:
+//   1. "nil block" – блок равен nil.
+//      Ожидается: ошибка, корень nil или пустой (wantRootLen=0).
+//   2. "empty transactions" – блок без транзакций.
+//      Ожидается: ошибки нет, корень длиной 32 байта (нулевой хеш).
+//   3. "one valid transaction" – одна корректная транзакция с ID длиной 32 байта.
+//      Ожидается: ошибки нет, корень длиной 32 байта, не nil.
+//   4. "two valid transactions" – две корректные транзакции.
+//      Ожидается: ошибки нет, корень длиной 32 байта.
+//   5. "nil transaction" – слайс Transaction содержит nil-элемент.
+//      Ожидается: ошибка, корень nil/пустой.
+//   6. "transaction with nil ID" – транзакция имеет поле Id = nil.
+//      Ожидается: ошибка, корень nil/пустой.
+//   7. "transaction with invalid ID length" – ID транзакции имеет длину 16 байт (не 32).
+//      Ожидается: ошибка, корень nil/пустой.
+//
+// Входные данные:
+//   - block: *block.Block – указатель на блок, может быть nil.
+//   - Внутри блока: Transaction – слайс transaction.Transaction.
+//
+// Ожидаемый результат:
+//   - root: []byte – корень Меркла (32 байта) или nil/пустой при ошибке.
+//   - err: error – nil при успехе, иначе ошибка.
+//
+// Проверки:
+//   - Наличие ошибки соответствует wantErr.
+//   - Длина корня равна wantRootLen (0 или 32).
+//   - Для непустых валидных блоков корень не должен быть нулевым (доп. проверка).
 func TestBlock_CalculateMerkleRootWithError(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -95,6 +126,30 @@ func TestBlock_CalculateMerkleRootWithError(t *testing.T) {
 	}
 }
 
+// TestBlock_CalculateMerkleRoot тестирует метод CalculateMerkleRoot().
+// В отличие от CalculateMerkleRootWithError, этот метод не возвращает ошибку,
+// а в случае проблем возвращает нулевой хеш (32 нулевых байта).
+//
+// Сценарии тестирования:
+//   1. "nil block" – блок равен nil.
+//      Ожидается: корень длиной 32 байта (нулевой хеш), ошибка не возвращается.
+//   2. "empty transactions" – блок без транзакций.
+//      Ожидается: корень длиной 32 байта (нулевой хеш).
+//   3. "valid transactions" – блок с двумя корректными транзакциями.
+//      Ожидается: корень длиной 32 байта, не nil.
+//   4. "nil transaction" – слайс Transaction содержит nil-элемент.
+//      Ожидается: корень длиной 32 байта (нулевой хеш), ошибка игнорируется.
+//
+// Входные данные:
+//   - block: *block.Block – указатель на блок, может быть nil.
+//
+// Ожидаемый результат:
+//   - root: []byte – всегда 32 байта (либо реальный корень, либо нулевой хеш).
+//     Ошибка не возвращается (сигнатура метода не содержит error).
+//
+// Проверки:
+//   - Длина корня равна wantRootLen (всегда 32).
+//   - root не равен nil.
 func TestBlock_CalculateMerkleRoot(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -140,6 +195,31 @@ func TestBlock_CalculateMerkleRoot(t *testing.T) {
 	}
 }
 
+// TestBlock_SetMerkleRoot тестирует метод SetMerkleRoot().
+// Метод вычисляет корень Меркла для транзакций блока и сохраняет его в Header.MerkleRoot.
+//
+// Сценарии тестирования:
+//   1. "nil block" – блок равен nil.
+//      Ожидается: ошибка, корень не устанавливается.
+//   2. "empty transactions" – блок без транзакций.
+//      Ожидается: ошибки нет, Header.MerkleRoot устанавливается в нулевой хеш (32 нулевых байта).
+//   3. "valid transactions" – блок с одной валидной транзакцией.
+//      Ожидается: ошибки нет, Header.MerkleRoot имеет длину 32 байта и не является нулевым.
+//   4. "nil transaction" – слайс Transaction содержит nil-элемент.
+//      Ожидается: ошибка, Header.MerkleRoot не изменяется (или остаётся нулевым).
+//
+// Входные данные:
+//   - block: *block.Block – указатель на блок, может быть nil.
+//   - Внутри блока: Transaction – слайс транзакций, Header.MerkleRoot – будет перезаписан.
+//
+// Ожидаемый результат:
+//   - err: error – nil при успехе, иначе ошибка.
+//   - Поле block.Header.MerkleRoot обновляется (при успехе) или остаётся неизменным (при ошибке).
+//
+// Проверки:
+//   - Наличие ошибки соответствует wantErr.
+//   - При успехе длина MerkleRoot равна 32.
+//   - Для блоков с транзакциями MerkleRoot не должен быть нулевым (если не пустой блок).
 func TestBlock_SetMerkleRoot(t *testing.T) {
 	tests := []struct {
 		name      string

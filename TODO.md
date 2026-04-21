@@ -98,8 +98,6 @@
             TestBlock_CalculateMerkleRoot ✅
             TestBlock_SetMerkleRoot ✅
 
-
-
 Оптимизация - рефакторинг:
     block:
         block_deserialize:
@@ -111,6 +109,7 @@
             тестирование легкое, пока интерфейсы не нужны ✅
         block_merkle:
             
+
 
 
 

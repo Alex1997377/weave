@@ -11,7 +11,44 @@ import (
 	"github.com/Alex1997377/weave/internal/crypto/hash"
 )
 
-// Тесты
+// TestBlock_Validate тестирует метод Validate() блока.
+// Метод Validate проверяет целостность и корректность блока:
+//   - блок не nil
+//   - хеш блока не nil
+//   - сложность не отрицательная
+//   - proof of work (хеш блока соответствует сложности)
+//   - хеш блока соответствует содержимому (хеш заголовка + транзакции)
+//   - все транзакции не nil
+//   - каждая транзакция валидна (вызов Transaction.Validate())
+//
+// Сценарии тестирования (таблица tests):
+//   1. "nil block" – блок равен nil.
+//      Ожидается: ошибка "block is nil".
+//   2. "nil hash" – поле Hash блока равно nil.
+//      Ожидается: ошибка "block hash is nil".
+//   3. "negative difficulty" – сложность блока (Header.Difficulty) отрицательная.
+//      Ожидается: ошибка "block difficulty cannot be negative".
+//   4. "invalid proof of work (hash too high)" – хеш блока не удовлетворяет требуемой сложности
+//      (например, difficulty=5, а хеш = 0xFF...).
+//      Ожидается: ошибка "invalid proof of work".
+//   5. "hash mismatch" – хеш блока не соответствует вычисленному хешу содержимого.
+//      Ожидается: ошибка "block hash doesn`t match content".
+//   6. "nil transaction in slice" – в слайсе Transaction есть nil-элемент.
+//      Ожидается: ошибка "transaction at index 2 is nil" (индекс зависит от позиции).
+//   7. "invalid transaction" – одна из транзакций возвращает ошибку при Validate().
+//      Ожидается: ошибка "invalid transaction at index 0: invalid tx".
+//   8. "valid block" – все проверки проходят успешно.
+//      Ожидается: ошибка nil.
+//
+// Входные данные:
+//   - block: *block.Block – указатель на блок для валидации.
+//
+// Выходные данные:
+//   - err: error – nil если блок корректен, иначе ошибка с описанием проблемы.
+//
+// Проверки теста:
+//   - Наличие ошибки соответствует wantErr.
+//   - При ошибке текст сообщения совпадает с ожидаемым errString.
 func TestBlock_Validate(t *testing.T) {
 	tests := []struct {
 		name      string

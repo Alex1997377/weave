@@ -1,43 +1,40 @@
 package chain
 
 import (
-	"encoding/hex"
-	"errors"
-	"fmt"
-
 	"github.com/Alex1997377/weave/internal/core/block"
 	"github.com/Alex1997377/weave/internal/core/transaction"
 	"github.com/Alex1997377/weave/internal/store"
 )
 
-const DIFFICULTY int = 4
-
 type Blockchain struct {
-	store  store.BlockStore // Приватное поле
+	store  store.BlockStore
 	Tip    []byte
 	Blocks []*block.Block
 }
 
 // NewBlockchain создает новую или восстанавливает существующую цепочку
-func NewBlockchain(store store.BlockStore) (*Blockchain, error) {
+func NewBlockchain(store store.BlockStore, genesis *block.Block) (*Blockchain, error) {
 	if store == nil {
-		return nil, errors.New("store cannot be nil")
+		return nil, NewInvalidBlockError("store cannot be nil", nil)
+	}
+	if genesis == nil {
+		return nil, NewInvalidBlockError("genesis block is nil", nil)
 	}
 
 	lastHash, err := store.GetLastHash()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get last hash: %w", err)
+		return nil, NewChainCorruptedError("failed to get last hash", err)
 	}
 
 	// Если нет последнего хеша, создаем генезис блок
 	if lastHash == nil {
 		genesis, err := block.NewBlock([]transaction.Transaction{}, make([]byte, 32), 0, DIFFICULTY)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create genesis block: %w", err)
+			return nil, NewInvalidBlockError("failed to create genesis block", err)
 		}
 
 		if err := store.SaveBlock(genesis); err != nil {
-			return nil, fmt.Errorf("failed to save genesis block: %w", err)
+			return nil, NewInvalidBlockError("failed to save genesis block", err)
 		}
 
 		return &Blockchain{
@@ -54,23 +51,10 @@ func NewBlockchain(store store.BlockStore) (*Blockchain, error) {
 	}
 
 	if err := bc.loadBlocks(); err != nil {
-		return nil, fmt.Errorf("failed to load blocks: %w", err)
+		return nil, err
 	}
 
 	return bc, nil
-}
-
-// Display отображает все блоки
-func (bc *Blockchain) Display() {
-	for i, b := range bc.Blocks {
-		fmt.Printf("--- Block ID: %d ---\n", i)
-		fmt.Printf("Timestamp: 	%d\n", b.Header.Timestamp)
-		fmt.Printf("Transactions: 	%d\n", len(b.Transaction))
-		fmt.Printf("Prev Hash:  %s\n", hex.EncodeToString(b.Header.PreviousHash))
-		fmt.Printf("Size: %d bytes\n", b.Size)
-		fmt.Printf("Hash: 		%s\n", hex.EncodeToString(b.Hash))
-		fmt.Println("  --- ฿ ---  ")
-	}
 }
 
 // Close закрывает хранилище

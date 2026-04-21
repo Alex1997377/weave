@@ -10,6 +10,40 @@ import (
 	"github.com/Alex1997377/weave/internal/core/transaction"
 )
 
+// TestNewBlock тестирует функцию создания нового блока block.NewBlock.
+// Функция NewBlock создаёт блок с заданными транзакциями, хешем предыдущего блока,
+// индексом (высотой) и сложностью майнинга.
+//
+// Сценарии тестирования (таблица tests):
+//  1. "nil previous hash" – prevHash = nil.
+//     Ожидается: ошибка с текстом "previous hash cannot be nil".
+//  2. "negative index" – index = -1.
+//     Ожидается: ошибка с текстом "block index cannot be negative".
+//  3. "negative difficulty" – difficulty = -1.
+//     Ожидается: ошибка с текстом "difficulty cannot be negative".
+//  4. "non-genesis with no transactions" – index = 1, transactions = [].
+//     Ожидается: ошибка с текстом "non-genesis block must have at least one transaction".
+//  5. "nil transaction in slice" – в слайсе транзакций есть nil-элемент.
+//     Ожидается: ошибка с текстом "transaction at index 1 is nil".
+//  6. "valid genesis block" – index = 0, transactions = [].
+//     Ожидается: успех (ошибка nil), блок не nil.
+//  7. "valid normal block" – index = 1, две корректные транзакции.
+//     Ожидается: успех, блок не nil.
+//
+// Входные параметры функции NewBlock:
+//   - transactions: []transaction.Transaction – слайс транзакций блока.
+//   - prevHash: []byte – хеш предыдущего блока (должен быть 32 байта, но тест не проверяет длину).
+//   - index: int – высота блока (номер в цепочке).
+//   - difficulty: int – сложность майнинга (количество ведущих нулей в хеше).
+//
+// Ожидаемые выходные значения NewBlock:
+//   - got: *block.Block – указатель на созданный блок (при успехе).
+//   - err: error – nil при успехе, иначе ошибка валидации.
+//
+// Проверки теста:
+//   - Наличие ошибки соответствует wantErr.
+//   - При ошибке сообщение содержит ожидаемую подстроку errContains.
+//   - При успехе блок не равен nil.
 func TestNewBlock(t *testing.T) {
 	prevHash := bytes.Repeat([]byte{0xAA}, 32) // правильная длина 32
 

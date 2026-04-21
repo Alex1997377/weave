@@ -50,3 +50,4 @@ func (bc *Blockchain) IsValid() error {
 	}
 	return nil
 }
+

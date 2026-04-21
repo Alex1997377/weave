@@ -19,15 +19,6 @@ func (e *BlockchainError) Unwrap() error {
 	return e.Err
 }
 
-const (
-	ErrInvalidBlock     = "INVALID_BLOCK"
-	ErrInvalidHash      = "INVALID_HASH"
-	ErrInvalidSignature = "INVALID_SIGNATURE"
-	ErrBlockNotFound    = "BLOCK_NOT_FOUND"
-	ErrChainCorrupted   = "CHAIN_CORRUPTED"
-	ErrCreateWallet     = "GENERATE_KEY_PAIR_ERROR"
-)
-
 func NewInvalidBlockError(message string, err error) *BlockchainError {
 	return &BlockchainError{
 		Code:    ErrInvalidBlock,

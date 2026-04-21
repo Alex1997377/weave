@@ -18,6 +18,7 @@ type Transaction interface {
 	TransactionSign(privateKey []byte) error
 	TransactionVerify(publicKey []byte) bool
 	TransactionSerialize() ([]byte, error)
+	Size() uint32
 }
 
 type BankTransaction struct {
@@ -26,6 +27,8 @@ type BankTransaction struct {
 	Recipient []byte  `json:"recipient"`
 	Amount    float64 `json:"amount"`
 	Signature []byte  `json:"signature"`
+
+	cachedSize uint32
 }
 
 func (bt *BankTransaction) TransactionGetID() []byte {
@@ -102,4 +105,12 @@ func (bt *BankTransaction) TransactionVerify(publicKey []byte) bool {
 	}
 
 	return ecdsa.VerifyASN1(ecdsaPubKey, hash[:], bt.Signature)
+}
+
+func (tx *BankTransaction) Size() uint32 {
+	if tx.cachedSize == 0 {
+		data, _ := tx.TransactionSerialize()
+		tx.cachedSize = uint32(len(data))
+	}
+	return tx.cachedSize
 }

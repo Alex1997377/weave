@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  dev:
+    build: .
+    container_name: weave-dev
+    volumes:
+      - .:/app                # монтируем текущую папку проекта в /app
+      - go-mod-cache:/go/pkg/mod  # кэш модулей (чтобы не скачивать каждый раз)
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    # Если нужны порты для сервисов (например, API, P2P)
+    ports:
+      - "8080:8080"   # пример для API
+    environment:
+      - GOOS=linux
+      - GOARCH=amd64
+      - CGO_ENABLED=0
+
+volumes:
+  go-mod-cache:
