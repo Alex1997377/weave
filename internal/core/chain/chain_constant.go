@@ -7,7 +7,7 @@ const (
 	ErrBlockNotFound    = "BLOCK_NOT_FOUND"
 	ErrChainCorrupted   = "CHAIN_CORRUPTED"
 	ErrCreateWallet     = "GENERATE_KEY_PAIR_ERROR"
-	ErrInvalidAddres    = "INVALID_ADDRESS"
+	ErrInvalidAddress   = "INVALID_ADDRESS"
 )
 
 const (

@@ -66,3 +66,11 @@ func NewCreateWalletError(message string, err error) *BlockchainError {
 		Err:     err,
 	}
 }
+
+func NewInvalidAddressError(message string, err error) *BlockchainError {
+	return &BlockchainError{
+		Code:    ErrInvalidAddress,
+		Message: message,
+		Err:     err,
+	}
+}

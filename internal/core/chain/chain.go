@@ -7,9 +7,10 @@ import (
 )
 
 type Blockchain struct {
-	store  store.BlockStore
-	Tip    []byte
-	Blocks []*block.Block
+	store    store.BlockStore
+	Tip      []byte
+	Blocks   []*block.Block
+	balances map[string]float64
 }
 
 // NewBlockchain создает новую или восстанавливает существующую цепочку
@@ -37,11 +38,12 @@ func NewBlockchain(store store.BlockStore, genesis *block.Block) (*Blockchain, e
 			return nil, NewInvalidBlockError("failed to save genesis block", err)
 		}
 
-		return &Blockchain{
-			store:  store,
-			Tip:    genesis.Hash,
-			Blocks: []*block.Block{genesis},
-		}, nil
+		bc := &Blockchain{
+			store:    store,
+			Tip:      genesis.Hash,
+			Blocks:   []*block.Block{genesis},
+			balances: make(map[string]float64),
+		}
 	}
 
 	// Загружаем существующую цепочку
@@ -55,6 +57,21 @@ func NewBlockchain(store store.BlockStore, genesis *block.Block) (*Blockchain, e
 	}
 
 	return bc, nil
+}
+
+func (bc *Blockchain) updateBalancesFromBlock(block *block.Block) {
+	for _, tx := range block.Transaction {
+		if tx == nil {
+			continue
+		}
+
+		sender := string(tx.TransactionGetSender())
+		recipient := string(tx.TransactionGetRecipient())
+		amount := tx.TransactionGetAmount()
+
+		bc.balances[sender] -= amount
+		bc.balances[recipient] += amount
+	}
 }
 
 // Close закрывает хранилище
